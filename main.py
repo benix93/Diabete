@@ -1,9 +1,13 @@
-import labels as labels
-import pandas as pd
 import matplotlib.pyplot as plt
-import numpy as np
+import pandas as pd
 import seaborn as sn
-from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.model_selection import train_test_split, cross_val_score, cross_val_predict
+from sklearn.naive_bayes import GaussianNB
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.tree import DecisionTreeClassifier
 
 data = pd.read_csv("diabetes_binary_health_indicators_BRFSS2015.csv")
 print("_____________________________________________________________________________")
@@ -85,17 +89,7 @@ def age_map(x):
         return 6
 
 
-def physHlth_map(x):
-    if x <= 10:
-        return 1
-    elif 11 <= x <= 20:
-        return 2
-    else:
-        return 3
-
-
-
-def MentHlth_map(x):
+def days_map(x):
     if x <= 10:
         return 1
     elif 11 <= x <= 20:
@@ -106,8 +100,8 @@ def MentHlth_map(x):
 
 data['BMI'] = data["BMI"].apply(bmi_map)
 data['Age'] = data["Age"].apply(age_map)
-data['PhysHlth'] = data["PhysHlth"].apply(physHlth_map)
-data['MentHlth'] = data["MentHlth"].apply(physHlth_map)
+data['PhysHlth'] = data["PhysHlth"].apply(days_map)
+data['MentHlth'] = data["MentHlth"].apply(days_map)
 
 data2 = data.copy()
 data2['Diabetes_binary'] = data2['Diabetes_binary'].replace({0: 'No', 1: 'Si'})
@@ -196,7 +190,6 @@ for i, ax in enumerate(axes.flatten()):
         ax.legend(title='Diabete', loc='upper right', bbox_to_anchor=(1.10, 1))
 plt.show()
 
-
 # Analizziamo il rapporto tra BMI e incidenza del diabete
 tab = pd.crosstab(data2.BMI, data2.Diabetes_binary, normalize='index') * 100
 ax = tab.plot(kind="bar", figsize=(15, 6), color=colors)
@@ -208,7 +201,6 @@ plt.ylabel('Percentuale')
 for p in ax.containers:
     ax.bar_label(p, label_type='edge', labels=[f'{x:.2f}%' for x in p.datavalues])
 plt.show()
-
 
 # Analizziamo il rapporto tra Istruzione e incidenza del Diabete
 data2['Education'].value_counts().sort_values(ascending=True).plot(figsize=(10, 10), kind='bar', color='dodgerblue')
@@ -229,7 +221,6 @@ for p in ax.containers:
     ax.bar_label(p, label_type='edge', labels=[f'{x:.2f}%' for x in p.datavalues])
 plt.show()
 
-
 # Analizziamo il rapporto tra Reddito e incidenza del diabete
 data2['Income'].value_counts().sort_values(ascending=True).plot(figsize=(10, 10), kind='bar', color='dodgerblue')
 plt.xticks(rotation=0)
@@ -247,7 +238,6 @@ plt.ylabel('Percentuale')
 for p in ax.containers:
     ax.bar_label(p, label_type='edge', labels=[f'{x:.2f}%' for x in p.datavalues])
 plt.show()
-
 
 # Analizziamo il rapporto tra Salute Generale e incidenza del diabete
 data2['GenHlth'].value_counts().sort_values(ascending=True).plot(figsize=(10, 10), kind='bar', color='dodgerblue')
@@ -322,7 +312,6 @@ for p in ax.containers:
     ax.bar_label(p, label_type='edge', labels=[f'{x:.2f}%' for x in p.datavalues])
 plt.show()
 
-
 # Matrice correlazione
 plt.figure(figsize=(15, 15))
 sn.heatmap(data.corr(), square=True, annot=True, cmap='YlGnBu', fmt='.2f', robust=True)
@@ -341,5 +330,38 @@ plt.axhline(y=0.05, linestyle='--', color='gray')
 plt.axhline(y=-0.05, linestyle='--', color='gray')
 plt.show()
 
-# Modelli
+# Vengono eliminate le features meno significative
+y = data['Diabetes_binary']
+x = data.drop(['Diabetes_binary', 'MentHlth', 'Smoker', 'Sex', 'AnyHealthcare', 'NoDocbcCost', 'Fruits', 'Veggies'],
+              axis=1)
+
+X_train, X_test, Y_train, Y_test = train_test_split(x, y, test_size=0.3, random_state=0)
+
+names = ["Decision Tree", 'Random Forest', 'Logistic Regression', 'Nearest Neighbors', "Naive Bayes"]
+classifiers = [
+    DecisionTreeClassifier(max_depth=7),
+    RandomForestClassifier(max_depth=7),
+    LogisticRegression(solver="lbfgs", max_iter=1000),
+    KNeighborsClassifier(5),
+    GaussianNB()
+]
+
+print("_____________________________________________________________________________")
+for name, clf in zip(names, classifiers):
+    print(name)
+    clf.fit(X_train, Y_train)
+    scores = cross_val_score(clf, X_train, Y_train, cv=10, scoring="accuracy")
+    print("Scores: ", [round(score, 3) for score in scores])
+    print("Media: %0.3f" % scores.mean())
+    print("Deviazione standard: %0.3f" % scores.std())
+
+    predictions = cross_val_predict(clf, X_train, Y_train, cv=10)
+    matrix = confusion_matrix(Y_train, predictions)
+    print("\n***************** Matrice Confusione *****************\n", matrix)
+
+    print()
+    Y_pred = clf.predict(X_test)
+    report = classification_report(Y_pred, Y_test)
+    print(report)
+    print("_____________________________________________________________________________")
 
