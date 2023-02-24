@@ -343,26 +343,18 @@ x = data.drop(['Diabetes_binary', 'MentHlth', 'Smoker', 'Sex', 'AnyHealthcare', 
 
 X_train, X_test, Y_train, Y_test = train_test_split(x, y, test_size=0.3, random_state=0)
 
-names = ["Decision Tree", 'Random Forest', 'Logistic Regression', 'Nearest Neighbors', "Naive Bayes", 'GradientBoost',
-         'XGB', 'LGBM', 'Perceptron', 'AdaBoost']
+names = ["Decision Tree", 'Random Forest', 'Logistic Regression']
 
 classifiers = [
     DecisionTreeClassifier(max_depth=7),
     RandomForestClassifier(max_depth=7),
-    LogisticRegression(solver="lbfgs", max_iter=1000),
-    KNeighborsClassifier(5),
-    GaussianNB(),
-    GradientBoostingClassifier(n_estimators=100, max_depth=5),
-    XGBClassifier(),
-    LGBMClassifier(),
-    Perceptron(),
-    AdaBoostClassifier()
-]
+    LogisticRegression(solver="lbfgs", max_iter=1000)]
+
 
 sm = SMOTE(random_state=0)
 X_train_sm, Y_train_sm = sm.fit_resample(X_train, Y_train)
-results = pd.DataFrame(columns=["Classifier", "Target", "Accuracy", "Precision", "Recall", "F1-Score"])
 
+results = pd.DataFrame(columns=["Classifier", "Target", "Accuracy", "Precision", "Recall", "F1-Score"])
 print("_____________________________________________________________________________")
 for name, clf in zip(names, classifiers):
     print('\n' + name)
@@ -426,7 +418,5 @@ print("_________________________________________________________________________
 print("_________________________________RISULTATI___________________________________")
 print(results)
 print("_____________________________________________________________________________")
-
-results.to_csv("results.csv")
+results.to_csv("resultsProva.csv")
 print("Tempo di esecuzione --- %s secondi ---" % (time.time() - start_time))
-
