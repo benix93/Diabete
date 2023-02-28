@@ -361,8 +361,9 @@ classifiers = [
 
 sm = SMOTE(random_state=0)
 X_train_sm, Y_train_sm = sm.fit_resample(X_train, Y_train)
-results = pd.DataFrame(columns=["Classifier", "Target", "Accuracy", "Precision", "Recall", "F1-Score"])
 
+results_unbal = pd.DataFrame(columns=["Classifier", "Target", "Accuracy", "Precision", "Recall", "F1-Score"])
+results_bal = pd.DataFrame(columns=["Classifier", "Target", "Accuracy", "Precision", "Recall", "F1-Score"])
 print("_____________________________________________________________________________")
 for name, clf in zip(names, classifiers):
     print('\n' + name)
@@ -374,7 +375,8 @@ for name, clf in zip(names, classifiers):
 
     predictions = cross_val_predict(clf, X_train, Y_train, cv=10)
     matrix = confusion_matrix(Y_train, predictions)
-    print("\n************************** Matrice Confusione ************************\n\n", matrix)
+    print("\n***************************** Matrice Confusione ****************************\n", matrix)
+    print()
 
     Y_pred = clf.predict(X_test)
     report = classification_report(Y_pred, Y_test, output_dict=True)
@@ -387,10 +389,12 @@ for name, clf in zip(names, classifiers):
     rec1 = round(report['1']['recall'], 3)
     f1 = round(report['1']['f1-score'], 3)
 
-    results = pd.concat([results, pd.DataFrame({"Classifier": name, "Target": "Unbalanced-0", "Accuracy": acc,
-                                                "Precision": prec0, "Recall": rec0, "F1-Score": f0}, index=[0])], ignore_index=True)
-    results = pd.concat([results, pd.DataFrame({"Classifier": name, "Target": "Unbalanced-1", "Accuracy": acc,
-                                                "Precision": prec1, "Recall": rec1, "F1-Score": f1}, index=[0])], ignore_index=True)
+    results_unbal = pd.concat([results_unbal, pd.DataFrame({"Classifier": name, "Target": "0", "Accuracy": acc,
+                                                            "Precision": prec0, "Recall": rec0, "F1-Score": f0},
+                                                           index=[0])], ignore_index=True)
+    results_unbal = pd.concat([results_unbal, pd.DataFrame({"Classifier": name, "Target": "1", "Accuracy": '',
+                                                            "Precision": prec1, "Recall": rec1, "F1-Score": f1},
+                                                           index=[0])], ignore_index=True)
 
     print("_____________________________________________________________________________")
     print("                                    SMOTE\n")
@@ -403,7 +407,8 @@ for name, clf in zip(names, classifiers):
 
     predictions = cross_val_predict(clf, X_train_sm, Y_train_sm, cv=10)
     matrix = confusion_matrix(Y_train_sm, predictions)
-    print("\n************************** Matrice Confusione ************************\n\n", matrix)
+    print("\n***************************** Matrice Confusione ****************************\n", matrix)
+    print("_____________________________________________________________________________")
 
     Y_pred = clf.predict(X_test)
     report = classification_report(Y_pred, Y_test, output_dict=True)
@@ -416,17 +421,24 @@ for name, clf in zip(names, classifiers):
     rec1 = round(report['1']['recall'], 3)
     f1 = round(report['1']['f1-score'], 3)
 
-    results = pd.concat([results, pd.DataFrame({"Classifier": name, "Target": "Balanced-0", "Accuracy": acc,
-                                                "Precision": prec0, "Recall": rec0, "F1-Score": f0}, index=[0])], ignore_index=True)
-    results = pd.concat([results, pd.DataFrame({"Classifier": name, "Target": "Balanced-1", "Accuracy": acc,
-                                                "Precision": prec1, "Recall": rec1, "F1-Score": f1}, index=[0])], ignore_index=True)
+    results_bal = pd.concat([results_bal, pd.DataFrame({"Classifier": name, "Target": "0", "Accuracy": acc,
+                                                        "Precision": prec0, "Recall": rec0, "F1-Score": f0},
+                                                       index=[0])], ignore_index=True)
+    results_bal = pd.concat([results_bal, pd.DataFrame({"Classifier": name, "Target": "1", "Accuracy": '',
+                                                        "Precision": prec1, "Recall": rec1, "F1-Score": f1},
+                                                       index=[0])], ignore_index=True)
 
 print()
 print("_____________________________________________________________________________")
-print("_________________________________RISULTATI___________________________________")
-print(results)
+print("___________________________RISULTATI(Unbalanced)_____________________________")
+print(results_unbal)
+print("_____________________________________________________________________________\n")
+results_unbal.to_csv("results_unbal.csv")
 print("_____________________________________________________________________________")
+print("____________________________RISULTATI(Balanced)______________________________")
+print(results_bal)
+print("_____________________________________________________________________________\n")
+results_bal.to_csv("results_bal.csv")
 
-results.to_csv("results.csv")
 print("Tempo di esecuzione --- %s secondi ---" % (time.time() - start_time))
 

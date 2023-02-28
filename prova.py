@@ -343,18 +343,18 @@ x = data.drop(['Diabetes_binary', 'MentHlth', 'Smoker', 'Sex', 'AnyHealthcare', 
 
 X_train, X_test, Y_train, Y_test = train_test_split(x, y, test_size=0.3, random_state=0)
 
-names = ["Decision Tree", 'Random Forest', 'Logistic Regression']
+names = ["Decision Tree", 'Random Forest']
 
 classifiers = [
     DecisionTreeClassifier(max_depth=7),
-    RandomForestClassifier(max_depth=7),
-    LogisticRegression(solver="lbfgs", max_iter=1000)]
+    RandomForestClassifier(max_depth=7)]
 
 
 sm = SMOTE(random_state=0)
 X_train_sm, Y_train_sm = sm.fit_resample(X_train, Y_train)
 
-results = pd.DataFrame(columns=["Classifier", "Target", "Accuracy", "Precision", "Recall", "F1-Score"])
+results_unbal = pd.DataFrame(columns=["Classifier", "Target", "Accuracy", "Precision", "Recall", "F1-Score"])
+results_bal = pd.DataFrame(columns=["Classifier", "Target", "Accuracy", "Precision", "Recall", "F1-Score"])
 print("_____________________________________________________________________________")
 for name, clf in zip(names, classifiers):
     print('\n' + name)
@@ -366,11 +366,13 @@ for name, clf in zip(names, classifiers):
 
     predictions = cross_val_predict(clf, X_train, Y_train, cv=10)
     matrix = confusion_matrix(Y_train, predictions)
-    print("\n************************** Matrice Confusione ************************\n\n", matrix)
+    print("\n***************************** Matrice Confusione ****************************\n", matrix)
+    print()
 
     Y_pred = clf.predict(X_test)
     report = classification_report(Y_pred, Y_test, output_dict=True)
-
+    report2 = classification_report(Y_pred, Y_test)
+    print(report2)
     acc = round(report['accuracy'], 3)
     prec0 = round(report['0']['precision'], 3)
     rec0 = round(report['0']['recall'], 3)
@@ -379,10 +381,12 @@ for name, clf in zip(names, classifiers):
     rec1 = round(report['1']['recall'], 3)
     f1 = round(report['1']['f1-score'], 3)
 
-    results = pd.concat([results, pd.DataFrame({"Classifier": name, "Target": "Unbalanced-0", "Accuracy": acc,
-                                                "Precision": prec0, "Recall": rec0, "F1-Score": f0}, index=[0])], ignore_index=True)
-    results = pd.concat([results, pd.DataFrame({"Classifier": name, "Target": "Unbalanced-1", "Accuracy": acc,
-                                                "Precision": prec1, "Recall": rec1, "F1-Score": f1}, index=[0])], ignore_index=True)
+    results_unbal = pd.concat([results_unbal, pd.DataFrame({"Classifier": name, "Target": "0", "Accuracy": acc,
+                                                            "Precision": prec0, "Recall": rec0, "F1-Score": f0},
+                                                           index=[0])], ignore_index=True)
+    results_unbal = pd.concat([results_unbal, pd.DataFrame({"Classifier": name, "Target": "1", "Accuracy": '',
+                                                            "Precision": prec1, "Recall": rec1, "F1-Score": f1},
+                                                           index=[0])], ignore_index=True)
 
     print("_____________________________________________________________________________")
     print("                                    SMOTE\n")
@@ -395,11 +399,13 @@ for name, clf in zip(names, classifiers):
 
     predictions = cross_val_predict(clf, X_train_sm, Y_train_sm, cv=10)
     matrix = confusion_matrix(Y_train_sm, predictions)
-    print("\n************************** Matrice Confusione ************************\n\n", matrix)
+    print("\n***************************** Matrice Confusione ****************************\n", matrix)
+    print("_____________________________________________________________________________")
 
     Y_pred = clf.predict(X_test)
     report = classification_report(Y_pred, Y_test, output_dict=True)
-
+    report2 = classification_report(Y_pred, Y_test)
+    print(report2)
     acc = round(report['accuracy'], 3)
     prec0 = round(report['0']['precision'], 3)
     rec0 = round(report['0']['recall'], 3)
@@ -408,15 +414,23 @@ for name, clf in zip(names, classifiers):
     rec1 = round(report['1']['recall'], 3)
     f1 = round(report['1']['f1-score'], 3)
 
-    results = pd.concat([results, pd.DataFrame({"Classifier": name, "Target": "Balanced-0", "Accuracy": acc,
-                                                "Precision": prec0, "Recall": rec0, "F1-Score": f0}, index=[0])], ignore_index=True)
-    results = pd.concat([results, pd.DataFrame({"Classifier": name, "Target": "Balanced-1", "Accuracy": acc,
-                                                "Precision": prec1, "Recall": rec1, "F1-Score": f1}, index=[0])], ignore_index=True)
+    results_bal = pd.concat([results_bal, pd.DataFrame({"Classifier": name, "Target": "0", "Accuracy": acc,
+                                                        "Precision": prec0, "Recall": rec0, "F1-Score": f0},
+                                                       index=[0])], ignore_index=True)
+    results_bal = pd.concat([results_bal, pd.DataFrame({"Classifier": name, "Target": "1", "Accuracy": '',
+                                                        "Precision": prec1, "Recall": rec1, "F1-Score": f1},
+                                                       index=[0])], ignore_index=True)
 
 print()
 print("_____________________________________________________________________________")
-print("_________________________________RISULTATI___________________________________")
-print(results)
+print("___________________________RISULTATI(Unbalanced)_____________________________")
+print(results_unbal)
+print("_____________________________________________________________________________\n")
+results_unbal.to_csv("results_unbal.csv")
 print("_____________________________________________________________________________")
-results.to_csv("resultsProva.csv")
+print("____________________________RISULTATI(Balanced)______________________________")
+print(results_bal)
+print("_____________________________________________________________________________\n")
+results_bal.to_csv("results_bal.csv")
+
 print("Tempo di esecuzione --- %s secondi ---" % (time.time() - start_time))

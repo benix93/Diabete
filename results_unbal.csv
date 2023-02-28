@@ -1,0 +1,5 @@
+,Classifier,Target,Accuracy,Precision,Recall,F1-Score
+0,Decision Tree,0,0.853,0.987,0.86,0.919
+1,Decision Tree,1,,0.102,0.587,0.173
+2,Random Forest,0,0.851,0.995,0.854,0.919
+3,Random Forest,1,,0.047,0.626,0.088
