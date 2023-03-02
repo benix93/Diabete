@@ -7,7 +7,7 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier,
 from sklearn.linear_model import LogisticRegression, Perceptron
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score, precision_score, recall_score, \
     f1_score
-from sklearn.model_selection import train_test_split, cross_val_score, cross_val_predict
+from sklearn.model_selection import train_test_split, cross_val_score, cross_val_predict, GridSearchCV
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
@@ -337,11 +337,9 @@ plt.axhline(y=-0.05, linestyle='--', color='gray')
 plt.show()
 
 # Vengono eliminate le features meno significative
-y = data['Diabetes_binary']
 x = data.drop(['Diabetes_binary', 'MentHlth', 'Smoker', 'Sex', 'AnyHealthcare', 'NoDocbcCost', 'Fruits', 'Veggies'],
               axis=1)
-
-X_train, X_test, Y_train, Y_test = train_test_split(x, y, test_size=0.3, random_state=0)
+y = data['Diabetes_binary']
 
 names = ["Decision Tree", 'Random Forest']
 
@@ -349,85 +347,46 @@ classifiers = [
     DecisionTreeClassifier(max_depth=7),
     RandomForestClassifier(max_depth=7)]
 
+results_bal = pd.DataFrame(columns=["Classifier", "Accuracy", "Precision", "Recall", "F1-Score"])
+params = [
+    {
+        'max_depth': [3, 5, 7, 9, None],
+        'criterion': ['gini', 'entropy'],
+        'splitter': ['best', 'random']
+    },  # Decision Tree
 
-sm = SMOTE(random_state=0)
-X_train_sm, Y_train_sm = sm.fit_resample(X_train, Y_train)
+    {
+        'n_estimators': [10, 50, 100, 200],
+        'max_depth': [3, 5, 7, 9, None],
+        'criterion': ['gini', 'entropy']
+    }  # Random Forest
+]
 
-results_unbal = pd.DataFrame(columns=["Classifier", "Target", "Accuracy", "Precision", "Recall", "F1-Score"])
-results_bal = pd.DataFrame(columns=["Classifier", "Target", "Accuracy", "Precision", "Recall", "F1-Score"])
+sm = SMOTE(random_state=1412)
+x, y = sm.fit_resample(x, y)
+X_train, X_test, Y_train, Y_test = train_test_split(x, y, test_size=0.3, random_state=0)
+
 print("_____________________________________________________________________________")
-for name, clf in zip(names, classifiers):
-    print('\n' + name)
+for name, classifier, param in zip(names, classifiers, params):
+    print('\n -> ' + name)
+    clf = GridSearchCV(classifier, param_grid=param, cv=10, n_jobs=-1)
     clf.fit(X_train, Y_train)
-    scores = cross_val_score(clf, X_train, Y_train, cv=10, scoring="accuracy")
-    print("Scores: ", [round(score, 3) for score in scores])
-    print("Media: %0.3f" % scores.mean())
-    print("Deviazione standard: %0.3f" % scores.std())
-
-    predictions = cross_val_predict(clf, X_train, Y_train, cv=10)
-    matrix = confusion_matrix(Y_train, predictions)
-    print("\n***************************** Matrice Confusione ****************************\n", matrix)
-    print()
-
+    print(f'Best parameters for {name} with Balanced Set: {clf.best_params_}')
     Y_pred = clf.predict(X_test)
-    report = classification_report(Y_pred, Y_test, output_dict=True)
-    report2 = classification_report(Y_pred, Y_test)
-    print(report2)
-    acc = round(report['accuracy'], 3)
-    prec0 = round(report['0']['precision'], 3)
-    rec0 = round(report['0']['recall'], 3)
-    f0 = round(report['0']['f1-score'], 3)
-    prec1 = round(report['1']['precision'], 3)
-    rec1 = round(report['1']['recall'], 3)
-    f1 = round(report['1']['f1-score'], 3)
-
-    results_unbal = pd.concat([results_unbal, pd.DataFrame({"Classifier": name, "Target": "0", "Accuracy": acc,
-                                                            "Precision": prec0, "Recall": rec0, "F1-Score": f0},
-                                                           index=[0])], ignore_index=True)
-    results_unbal = pd.concat([results_unbal, pd.DataFrame({"Classifier": name, "Target": "1", "Accuracy": '',
-                                                            "Precision": prec1, "Recall": rec1, "F1-Score": f1},
-                                                           index=[0])], ignore_index=True)
-
-    print("_____________________________________________________________________________")
-    print("                                    SMOTE\n")
-
-    clf.fit(X_train_sm, Y_train_sm)
-    scores = cross_val_score(clf, X_train_sm, Y_train_sm, cv=10, scoring="accuracy")
-    print("Scores: ", [round(score, 3) for score in scores])
-    print("Media: %0.3f" % scores.mean())
-    print("Deviazione standard: %0.3f" % scores.std())
-
-    predictions = cross_val_predict(clf, X_train_sm, Y_train_sm, cv=10)
-    matrix = confusion_matrix(Y_train_sm, predictions)
+    matrix = confusion_matrix(Y_test, Y_pred)
     print("\n***************************** Matrice Confusione ****************************\n", matrix)
     print("_____________________________________________________________________________")
 
-    Y_pred = clf.predict(X_test)
-    report = classification_report(Y_pred, Y_test, output_dict=True)
-    report2 = classification_report(Y_pred, Y_test)
-    print(report2)
-    acc = round(report['accuracy'], 3)
-    prec0 = round(report['0']['precision'], 3)
-    rec0 = round(report['0']['recall'], 3)
-    f0 = round(report['0']['f1-score'], 3)
-    prec1 = round(report['1']['precision'], 3)
-    rec1 = round(report['1']['recall'], 3)
-    f1 = round(report['1']['f1-score'], 3)
+    report = classification_report(Y_test, Y_pred, output_dict=True)
 
-    results_bal = pd.concat([results_bal, pd.DataFrame({"Classifier": name, "Target": "0", "Accuracy": acc,
-                                                        "Precision": prec0, "Recall": rec0, "F1-Score": f0},
-                                                       index=[0])], ignore_index=True)
-    results_bal = pd.concat([results_bal, pd.DataFrame({"Classifier": name, "Target": "1", "Accuracy": '',
-                                                        "Precision": prec1, "Recall": rec1, "F1-Score": f1},
+    results_bal = pd.concat([results_bal, pd.DataFrame({"Classifier": name,
+                                                        "Accuracy": report['accuracy'],
+                                                        "Precision": report['macro avg']['precision'],
+                                                        "Recall": report['macro avg']['recall'],
+                                                        "F1-Score": report['macro avg']['f1-score']},
                                                        index=[0])], ignore_index=True)
 
 print()
-print("_____________________________________________________________________________")
-print("___________________________RISULTATI(Unbalanced)_____________________________")
-print(results_unbal)
-print("_____________________________________________________________________________\n")
-results_unbal.to_csv("results_unbal.csv")
-print("_____________________________________________________________________________")
 print("____________________________RISULTATI(Balanced)______________________________")
 print(results_bal)
 print("_____________________________________________________________________________\n")
