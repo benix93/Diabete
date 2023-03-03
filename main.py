@@ -10,6 +10,7 @@ from sklearn.metrics import confusion_matrix, classification_report, accuracy_sc
 from sklearn.model_selection import train_test_split, cross_val_score, cross_val_predict, GridSearchCV
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier
 import time
@@ -342,18 +343,18 @@ x = data.drop(['Diabetes_binary', 'MentHlth', 'Smoker', 'Sex', 'AnyHealthcare', 
 y = data['Diabetes_binary']
 
 names = ["Decision Tree", 'Random Forest', 'Logistic Regression', 'Nearest Neighbors', "Naive Bayes", 'GradientBoost',
-         'XGB', 'LGBM', 'Perceptron', 'AdaBoost']
+         'XGB', 'LGBM', 'SVC', 'AdaBoost']
 
 classifiers = [
-    DecisionTreeClassifier(max_depth=7),
-    RandomForestClassifier(max_depth=7),
-    LogisticRegression(solver="lbfgs", max_iter=1000),
-    KNeighborsClassifier(5),
+    DecisionTreeClassifier(),
+    RandomForestClassifier(),
+    LogisticRegression(),
+    KNeighborsClassifier(),
     GaussianNB(),
-    GradientBoostingClassifier(n_estimators=100, max_depth=5),
+    GradientBoostingClassifier(),
     XGBClassifier(),
     LGBMClassifier(),
-    Perceptron(),
+    SVC(),
     AdaBoostClassifier()
 ]
 
@@ -361,80 +362,83 @@ results_bal = pd.DataFrame(columns=["Classifier", "Accuracy", "Precision", "Reca
 
 params = [
     {
-        'max_depth': [3, 5, 7, 9, None],
+        'max_depth': [5, 7, 9, None],
         'criterion': ['gini', 'entropy'],
         'splitter': ['best', 'random']
     },  # Decision Tree
 
     {
-        'n_estimators': [10, 50, 100, 200],
-        'max_depth': [3, 5, 7, 9, None],
+        'n_estimators': [50, 100, 200],
+        'max_depth': [5, 7, 9],
         'criterion': ['gini', 'entropy']
     },  # Random Forest
 
     {
         'penalty': ['l1', 'l2'],
-        'C': [0.1, 0.5, 1, 5, 10],
-        'solver': ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'],
-        'max_iter': [1000, 2000, 3000]
+        'C': [0.1, 1, 5, 10],
+        'solver': ['lbfgs', 'liblinear', 'sag', 'saga'],
+        'max_iter': [1500, 2000, 3000]
     },  # Logistic Regression
 
     {
-        'n_neighbors': [3, 5, 7, 9],
+        'n_neighbors': [3, 5, 7],
         'weights': ['uniform', 'distance'],
-        'algorithm': ['auto', 'ball_tree', 'kd_tree', 'brute']
+        'algorithm': ['auto', 'ball_tree', 'kd_tree'],
+        'p': [1, 2]
     },  # KNN
 
-    {},  # Naive Bayes
+    {'alpha': [0, 0.5, 1]},  # Naive Bayes
 
     {
-        'learning_rate': [0.05, 0.1, 0.25, 0.5],
-        'n_estimators': [10, 50, 100, 200],
-        'max_depth': [3, 5, 7, 9]
+        'learning_rate': [0.25, 0.5, 0.75],
+        'n_estimators': [50, 100, 200],
+        'max_depth': [5, 7, 9]
     },  # GradientBoost
 
     {
-        'learning_rate': [0.05, 0.1, 0.25, 0.5],
-        'n_estimators': [10, 50, 100, 200],
-        'max_depth': [3, 5, 7, 9]
+        'learning_rate': [0.25, 0.5, 0.75],
+        'n_estimators': [50, 100, 200],
+        'max_depth': [5, 7, 9]
     },  # XGB
 
     {
-        'learning_rate': [0.05, 0.1, 0.25, 0.5],
-        'n_estimators': [10, 50, 100, 200],
-        'max_depth': [3, 5, 7, 9]
+        'learning_rate': [0.25, 0.5, 0.75],
+        'n_estimators': [50, 100, 200],
+        'max_depth': [5, 7, 9]
     },  # LGBM
 
     {
-        'penalty': ['l1', 'l2', 'elasticnet'],
-        'alpha': [0.0001, 0.001, 0.01, 0.1],
-        'max_iter': [1000, 2000, 3000]
-    },  # Perceptron
+        'C': [0.1, 1, 5, 10],
+        'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
+        'degree': [2, 3, 4],
+        'gamma': ['scale', 'auto']
+    },  # SVM
 
     {
-        'n_estimators': [10, 50, 100, 200],
-        'learning_rate': [0.05, 0.1, 0.25, 0.5],
+        'n_estimators': [50, 100, 200],
+        'learning_rate': [0.1, 0.25, 0.5],
         'algorithm': ['SAMME', 'SAMME.R']
     }  # AdaBoost
 ]
+param_results = pd.DataFrame(columns=["Classifier", "Best Parameters"])
 
+X_train, X_test, Y_train, Y_test = train_test_split(x, y, test_size=0.3, random_state=42, stratify=y)
 sm = SMOTE(random_state=1412)
-x, y = sm.fit_resample(x, y)
-X_train, X_test, Y_train, Y_test = train_test_split(x, y, test_size=0.3, random_state=0)
+X_train, Y_train = sm.fit_resample(X_train, Y_train)
 
 print("_____________________________________________________________________________")
 for name, classifier, param in zip(names, classifiers, params):
     print('\n -> ' + name)
-    clf = GridSearchCV(classifier, param_grid=param, cv=10, n_jobs=-1)
+    clf = GridSearchCV(classifier, param_grid=param, cv=5, n_jobs=-1, scoring='f1_macro')
     clf.fit(X_train, Y_train)
-    print(f'Best parameters for {name} with Balanced Set: {clf.best_params_}')
+    print(f'Migliori parametri per {name}: {clf.best_params_}')
+
     Y_pred = clf.predict(X_test)
     matrix = confusion_matrix(Y_test, Y_pred)
     print("\n***************************** Matrice Confusione ****************************\n", matrix)
     print("_____________________________________________________________________________")
 
     report = classification_report(Y_test, Y_pred, output_dict=True)
-
     results_bal = pd.concat([results_bal, pd.DataFrame({"Classifier": name,
                                                         "Accuracy": report['accuracy'],
                                                         "Precision": report['macro avg']['precision'],
@@ -442,10 +446,19 @@ for name, classifier, param in zip(names, classifiers, params):
                                                         "F1-Score": report['macro avg']['f1-score']},
                                                        index=[0])], ignore_index=True)
 
+    param_results = pd.concat([param_results, pd.DataFrame({"Classifier": name,
+                                                            "Best Parameters": [clf.best_params_]},
+                                                           index=[0])], ignore_index=True)
+
+# Stampa dei risultati in una tabella
 print()
-print("________________________________RISULTATI____________________________________")
+print("_______________________________ RISULTATI ___________________________________")
 print(results_bal)
 print("_____________________________________________________________________________\n")
 results_bal.to_csv("results_bal.csv")
+
+print("\n________________________ RISULTATI PARAMETRI ______________________________\n")
+print(param_results)
+param_results.to_csv("best_params.csv")
 
 print("Tempo di esecuzione --- %s secondi ---" % (time.time() - start_time))
