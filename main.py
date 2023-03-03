@@ -423,14 +423,22 @@ params = [
 param_results = pd.DataFrame(columns=["Classifier", "Best Parameters"])
 
 X_train, X_test, Y_train, Y_test = train_test_split(x, y, test_size=0.3, random_state=42, stratify=y)
-sm = SMOTE(random_state=1412)
-X_train, Y_train = sm.fit_resample(X_train, Y_train)
+sm = SMOTE(random_state=42)
+X_train_res, Y_train_res = sm.fit_resample(X_train, Y_train)
+
+plt.figure(figsize=(10, 10))
+colors = ['dodgerblue', 'crimson']
+Y_train_res.value_counts().plot.bar(color=colors)
+plt.ylabel('Popolazione')
+plt.xlabel('Diabete')
+plt.title('Distribuzione diabete Resampled')
+plt.show()
 
 print("_____________________________________________________________________________")
 for name, classifier, param in zip(names, classifiers, params):
     print('\n -> ' + name)
     clf = GridSearchCV(classifier, param_grid=param, cv=5, n_jobs=-1, scoring='f1_macro')
-    clf.fit(X_train, Y_train)
+    clf.fit(X_train_res, Y_train_res)
     print(f'Migliori parametri per {name}: {clf.best_params_}')
 
     Y_pred = clf.predict(X_test)
