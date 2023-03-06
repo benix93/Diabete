@@ -1,8 +1,12 @@
 import matplotlib.pyplot as plt
 import pandas as pd
+import pip
 import seaborn as sn
+import shap
+import xgboost
 from imblearn.over_sampling import SMOTE
 from lightgbm import LGBMClassifier
+from lime import lime_tabular
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression, Perceptron
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score, precision_score, recall_score, \
@@ -140,201 +144,201 @@ data2['PhysHlth'] = data2['PhysHlth'].replace(
 data2['MentHlth'] = data2['MentHlth'].replace(
     {1: '1-10', 2: '11-20', 3: '21-30'})
 
-plt.figure(figsize=(10, 10))
-colors = ['dodgerblue', 'crimson']
-data2['Diabetes_binary'].value_counts().plot.bar(color=colors)
-plt.ylabel('Popolazione')
-plt.xlabel('Diabete')
-plt.title('Distribuzione diabete')
-plt.show()
-
-# Piechart BMI
-data2['BMI'].value_counts().plot(figsize=(10, 10), kind='pie', autopct='%.1f', colors=sn.color_palette('Set2'),
-                                 pctdistance=0.9, radius=1)
-plt.title('Distribuzione BMI')
-plt.axis('off')
-plt.legend(title='BMI', loc='upper right', bbox_to_anchor=(1, 1))
-plt.show()
-
-# Valutiamo le percentuali con cui si presentano le features binarie
-fig, axes = plt.subplots(4, 3, figsize=(15, 15))
-for i, ax in enumerate(axes.flatten()):
-    if i < len(['Diabetes_binary', 'Sex', 'HighBP', 'HighChol', 'CholCheck', 'DiffWalk', 'AnyHealthcare',
-                'HvyAlcoholConsump', 'Veggies', 'Fruits', 'PhysActivity', 'HeartDiseaseorAttack', 'Stroke']):
-        col = ['Diabetes_binary', 'Sex', 'HighBP', 'HighChol', 'CholCheck', 'DiffWalk', 'AnyHealthcare',
-               'HvyAlcoholConsump', 'Veggies', 'Fruits', 'PhysActivity', 'HeartDiseaseorAttack', 'Stroke'][i]
-        labels = data2[col].unique()
-        ax.pie(data2[col].value_counts(), labels=labels, autopct='%.1f', colors=colors)
-        ax.set_title(col)
-plt.show()
-
-fig, axes = plt.subplots(4, 3, figsize=(15, 20))
-for i, ax in enumerate(axes.flatten()):
-    if i < len(['Sex', 'HighBP', 'HighChol', 'CholCheck', 'DiffWalk', 'AnyHealthcare',
-                'HvyAlcoholConsump', 'Veggies', 'Fruits', 'PhysActivity', 'HeartDiseaseorAttack', 'Stroke']):
-        col = ['Sex', 'HighBP', 'HighChol', 'CholCheck', 'DiffWalk', 'AnyHealthcare',
-               'HvyAlcoholConsump', 'Veggies', 'Fruits', 'PhysActivity', 'HeartDiseaseorAttack', 'Stroke'][i]
-        tab = pd.crosstab(data2[col], data2.Diabetes_binary, normalize='index') * 100
-        ax = tab.plot(kind="bar", stacked=True, figsize=(20, 20), color=colors, ax=ax)
-        ax.set_title(f'{col} x Diabete')
-        ax.set_xlabel(col)
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
-        ax.set_ylabel('Percentuale')
-        ax.legend(title='Diabete', loc='upper right', bbox_to_anchor=(1.10, 1))
-plt.show()
-
-fig, axes = plt.subplots(1, 3, figsize=(15, 6))
-for i, ax in enumerate(axes.flatten()):
-    if i < len(['Smoker', 'AnyHealthcare', 'NoDocbcCost']):
-        col = ['Smoker', 'AnyHealthcare', 'NoDocbcCost'][i]
-        tab = pd.crosstab(data2[col], data2.Diabetes_binary, normalize='index') * 100
-        ax = tab.plot(kind="bar", stacked=True, figsize=(18, 6), color=colors, ax=ax)
-        ax.set_title(f'{col} x Diabete')
-        ax.set_xlabel(col)
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
-        ax.set_ylabel('Percentuale')
-        ax.legend(title='Diabete', loc='upper right', bbox_to_anchor=(1.10, 1))
-plt.show()
-
-# Analizziamo il rapporto tra BMI e incidenza del diabete
-tab = pd.crosstab(data2.BMI, data2.Diabetes_binary, normalize='index') * 100
-ax = tab.plot(kind="bar", figsize=(15, 6), color=colors)
-ax.legend(title='Diabete', loc='upper right', bbox_to_anchor=(1, 1))
-plt.title('Diabete x BMI')
-plt.xlabel('BMI')
-plt.xticks(rotation=0)
-plt.ylabel('Percentuale')
-for p in ax.containers:
-    ax.bar_label(p, label_type='edge', labels=[f'{x:.2f}%' for x in p.datavalues])
-plt.show()
-
-# Analizziamo il rapporto tra Istruzione e incidenza del Diabete
-data2['Education'].value_counts().sort_values(ascending=True).plot(figsize=(10, 10), kind='bar', color='dodgerblue')
-plt.xticks(rotation=0)
-plt.ylabel('Popolazione')
-plt.xlabel('Livelli di Istruzione')
-plt.title('Distribuzione Livello Istruzione')
-plt.show()
-
-tab = pd.crosstab(data2.Education, data2.Diabetes_binary, normalize='index') * 100
-ax = tab.plot(kind="bar", figsize=(18, 6), color=colors)
-ax.legend(title='Diabete', loc='upper right', bbox_to_anchor=(1, 1))
-plt.title('Diabete x Istruzione')
-plt.xlabel('Istruzione')
-plt.xticks(rotation=0)
-plt.ylabel('Percentuale')
-for p in ax.containers:
-    ax.bar_label(p, label_type='edge', labels=[f'{x:.2f}%' for x in p.datavalues])
-plt.show()
-
-# Analizziamo il rapporto tra Reddito e incidenza del diabete
-data2['Income'].value_counts().sort_values(ascending=True).plot(figsize=(10, 10), kind='bar', color='dodgerblue')
-plt.xticks(rotation=0)
-plt.ylabel('Popolazione')
-plt.xlabel('Fasce di reddito')
-plt.title('Distribuzione Redditi')
-
-tab = pd.crosstab(data2.Income, data2.Diabetes_binary, normalize='index') * 100
-ax = tab.plot(kind="bar", figsize=(18, 6), color=colors)
-ax.legend(title='Diabete', loc='upper right', bbox_to_anchor=(1, 1))
-plt.title('Diabete x Fasce di Reddito')
-plt.xlabel('Reddito')
-plt.xticks(rotation=0)
-plt.ylabel('Percentuale')
-for p in ax.containers:
-    ax.bar_label(p, label_type='edge', labels=[f'{x:.2f}%' for x in p.datavalues])
-plt.show()
-
-# Analizziamo il rapporto tra Salute Generale e incidenza del diabete
-data2['GenHlth'].value_counts().sort_values(ascending=True).plot(figsize=(10, 10), kind='bar', color='dodgerblue')
-plt.xticks(rotation=0)
-plt.ylabel('Popolazione')
-plt.xlabel('Livello di salute')
-plt.title('Distribuzione Salute Generale')
-
-tab = pd.crosstab(data2.GenHlth, data2.Diabetes_binary, normalize='index') * 100
-ax = tab.plot(kind="bar", figsize=(15, 6), color=colors)
-ax.legend(title='Diabete', loc='upper right', bbox_to_anchor=(1, 1))
-plt.title('Diabete x Salute Generale')
-plt.xlabel('Salute Generale')
-plt.xticks(rotation=0)
-plt.ylabel('Percentuale')
-for p in ax.containers:
-    ax.bar_label(p, label_type='edge', labels=[f'{x:.2f}%' for x in p.datavalues])
-plt.show()
-
-# Analizziamo il rapporto tra Salute Mentale e incidenza del diabete
-data2['MentHlth'].value_counts().sort_values(ascending=True).plot(figsize=(10, 10), kind='bar', color='dodgerblue')
-plt.ylabel('Popolazione')
-plt.xlabel('Giorni')
-plt.xticks(rotation=0)
-plt.title('Distribuzione Salute Mentale')
-
-tab = pd.crosstab(data2.MentHlth, data2.Diabetes_binary, normalize='index') * 100
-ax = tab.plot(kind="bar", figsize=(15, 6), color=colors)
-ax.legend(title='Diabete', loc='upper right', bbox_to_anchor=(1, 1))
-plt.title('Diabete x Salute Mentale')
-plt.xlabel('Giorni')
-plt.xticks(rotation=0)
-plt.ylabel('Percentuale')
-for p in ax.containers:
-    ax.bar_label(p, label_type='edge', labels=[f'{x:.1f}%' for x in p.datavalues])
-plt.show()
-
-# Crosstab tra diabete e Age
-data2['Age'].value_counts().sort_values(ascending=True).plot(figsize=(10, 10), kind='bar', color='dodgerblue')
-plt.ylabel('Popolazione')
-plt.xlabel('Fasce di eta')
-plt.xticks(rotation=0)
-plt.title('Distribuzione Age')
-plt.show()
-
-tab = pd.crosstab(data2.Age, data2.Diabetes_binary, normalize='index') * 100
-ax = tab.plot(kind="bar", figsize=(15, 6), color=colors)
-ax.legend(title='Diabete')
-plt.title('Distribuzione frequenze Diabete x Age')
-plt.xlabel('Fasce di eta')
-plt.xticks(rotation=0)
-plt.ylabel('Percentuale')
-for p in ax.containers:
-    ax.bar_label(p, label_type='edge', labels=[f'{x:.2f}%' for x in p.datavalues])
-plt.show()
-
-# Crosstab tra diabete e Salute fisica
-data2['PhysHlth'].value_counts().sort_values(ascending=True).plot(figsize=(10, 10), kind='bar', color='dodgerblue')
-plt.ylabel('Popolazione')
-plt.xlabel('Giorni')
-plt.xticks(rotation=0)
-plt.title('Distribuzione Problemi Fisici')
-
-tab = pd.crosstab(data2.PhysHlth, data2.Diabetes_binary, normalize='index') * 100
-ax = tab.plot(kind="bar", figsize=(15, 6), color=colors)
-ax.legend(title='Diabete', loc='upper right', bbox_to_anchor=(1, 1))
-plt.title('Diabete x Problemi fisici')
-plt.xlabel('Giorni')
-plt.xticks(rotation=0)
-plt.ylabel('Percentuale')
-for p in ax.containers:
-    ax.bar_label(p, label_type='edge', labels=[f'{x:.2f}%' for x in p.datavalues])
-plt.show()
-
-# Matrice correlazione
-plt.figure(figsize=(15, 15))
-sn.heatmap(data.corr(), square=True, annot=True, cmap='YlGnBu', fmt='.2f', robust=True)
-plt.title("Matrice Correlazione")
-plt.show()
-
-# Istogramma correlazione con Diabetes_Binary
-plt.figure(figsize=(15, 15))
-corr = data.corr().sort_values(by='Diabetes_binary', ascending=False)
-corr = corr[corr.index != 'Diabetes_binary']
-corr['Diabetes_binary'].plot(kind='bar', color='firebrick')
-plt.xlabel('Features')
-plt.ylabel('Correlazione')
-plt.title('Correlazione con Diabete')
-plt.axhline(y=0.05, linestyle='--', color='gray')
-plt.axhline(y=-0.05, linestyle='--', color='gray')
-plt.show()
+# plt.figure(figsize=(10, 10))
+# colors = ['dodgerblue', 'crimson']
+# data2['Diabetes_binary'].value_counts().plot.bar(color=colors)
+# plt.ylabel('Popolazione')
+# plt.xlabel('Diabete')
+# plt.title('Distribuzione diabete')
+# plt.show()
+#
+# # Piechart BMI
+# data2['BMI'].value_counts().plot(figsize=(10, 10), kind='pie', autopct='%.1f', colors=sn.color_palette('Set2'),
+#                                  pctdistance=0.9, radius=1)
+# plt.title('Distribuzione BMI')
+# plt.axis('off')
+# plt.legend(title='BMI', loc='upper right', bbox_to_anchor=(1, 1))
+# plt.show()
+#
+# # Valutiamo le percentuali con cui si presentano le features binarie
+# fig, axes = plt.subplots(4, 3, figsize=(15, 15))
+# for i, ax in enumerate(axes.flatten()):
+#     if i < len(['Diabetes_binary', 'Sex', 'HighBP', 'HighChol', 'CholCheck', 'DiffWalk', 'AnyHealthcare',
+#                 'HvyAlcoholConsump', 'Veggies', 'Fruits', 'PhysActivity', 'HeartDiseaseorAttack', 'Stroke']):
+#         col = ['Diabetes_binary', 'Sex', 'HighBP', 'HighChol', 'CholCheck', 'DiffWalk', 'AnyHealthcare',
+#                'HvyAlcoholConsump', 'Veggies', 'Fruits', 'PhysActivity', 'HeartDiseaseorAttack', 'Stroke'][i]
+#         labels = data2[col].unique()
+#         ax.pie(data2[col].value_counts(), labels=labels, autopct='%.1f', colors=colors)
+#         ax.set_title(col)
+# plt.show()
+#
+# fig, axes = plt.subplots(4, 3, figsize=(15, 20))
+# for i, ax in enumerate(axes.flatten()):
+#     if i < len(['Sex', 'HighBP', 'HighChol', 'CholCheck', 'DiffWalk', 'AnyHealthcare',
+#                 'HvyAlcoholConsump', 'Veggies', 'Fruits', 'PhysActivity', 'HeartDiseaseorAttack', 'Stroke']):
+#         col = ['Sex', 'HighBP', 'HighChol', 'CholCheck', 'DiffWalk', 'AnyHealthcare',
+#                'HvyAlcoholConsump', 'Veggies', 'Fruits', 'PhysActivity', 'HeartDiseaseorAttack', 'Stroke'][i]
+#         tab = pd.crosstab(data2[col], data2.Diabetes_binary, normalize='index') * 100
+#         ax = tab.plot(kind="bar", stacked=True, figsize=(20, 20), color=colors, ax=ax)
+#         ax.set_title(f'{col} x Diabete')
+#         ax.set_xlabel(col)
+#         ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+#         ax.set_ylabel('Percentuale')
+#         ax.legend(title='Diabete', loc='upper right', bbox_to_anchor=(1.10, 1))
+# plt.show()
+#
+# fig, axes = plt.subplots(1, 3, figsize=(15, 6))
+# for i, ax in enumerate(axes.flatten()):
+#     if i < len(['Smoker', 'AnyHealthcare', 'NoDocbcCost']):
+#         col = ['Smoker', 'AnyHealthcare', 'NoDocbcCost'][i]
+#         tab = pd.crosstab(data2[col], data2.Diabetes_binary, normalize='index') * 100
+#         ax = tab.plot(kind="bar", stacked=True, figsize=(18, 6), color=colors, ax=ax)
+#         ax.set_title(f'{col} x Diabete')
+#         ax.set_xlabel(col)
+#         ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+#         ax.set_ylabel('Percentuale')
+#         ax.legend(title='Diabete', loc='upper right', bbox_to_anchor=(1.10, 1))
+# plt.show()
+#
+# # Analizziamo il rapporto tra BMI e incidenza del diabete
+# tab = pd.crosstab(data2.BMI, data2.Diabetes_binary, normalize='index') * 100
+# ax = tab.plot(kind="bar", figsize=(15, 6), color=colors)
+# ax.legend(title='Diabete', loc='upper right', bbox_to_anchor=(1, 1))
+# plt.title('Diabete x BMI')
+# plt.xlabel('BMI')
+# plt.xticks(rotation=0)
+# plt.ylabel('Percentuale')
+# for p in ax.containers:
+#     ax.bar_label(p, label_type='edge', labels=[f'{x:.2f}%' for x in p.datavalues])
+# plt.show()
+#
+# # Analizziamo il rapporto tra Istruzione e incidenza del Diabete
+# data2['Education'].value_counts().sort_values(ascending=True).plot(figsize=(10, 10), kind='bar', color='dodgerblue')
+# plt.xticks(rotation=0)
+# plt.ylabel('Popolazione')
+# plt.xlabel('Livelli di Istruzione')
+# plt.title('Distribuzione Livello Istruzione')
+# plt.show()
+#
+# tab = pd.crosstab(data2.Education, data2.Diabetes_binary, normalize='index') * 100
+# ax = tab.plot(kind="bar", figsize=(18, 6), color=colors)
+# ax.legend(title='Diabete', loc='upper right', bbox_to_anchor=(1, 1))
+# plt.title('Diabete x Istruzione')
+# plt.xlabel('Istruzione')
+# plt.xticks(rotation=0)
+# plt.ylabel('Percentuale')
+# for p in ax.containers:
+#     ax.bar_label(p, label_type='edge', labels=[f'{x:.2f}%' for x in p.datavalues])
+# plt.show()
+#
+# # Analizziamo il rapporto tra Reddito e incidenza del diabete
+# data2['Income'].value_counts().sort_values(ascending=True).plot(figsize=(10, 10), kind='bar', color='dodgerblue')
+# plt.xticks(rotation=0)
+# plt.ylabel('Popolazione')
+# plt.xlabel('Fasce di reddito')
+# plt.title('Distribuzione Redditi')
+#
+# tab = pd.crosstab(data2.Income, data2.Diabetes_binary, normalize='index') * 100
+# ax = tab.plot(kind="bar", figsize=(18, 6), color=colors)
+# ax.legend(title='Diabete', loc='upper right', bbox_to_anchor=(1, 1))
+# plt.title('Diabete x Fasce di Reddito')
+# plt.xlabel('Reddito')
+# plt.xticks(rotation=0)
+# plt.ylabel('Percentuale')
+# for p in ax.containers:
+#     ax.bar_label(p, label_type='edge', labels=[f'{x:.2f}%' for x in p.datavalues])
+# plt.show()
+#
+# # Analizziamo il rapporto tra Salute Generale e incidenza del diabete
+# data2['GenHlth'].value_counts().sort_values(ascending=True).plot(figsize=(10, 10), kind='bar', color='dodgerblue')
+# plt.xticks(rotation=0)
+# plt.ylabel('Popolazione')
+# plt.xlabel('Livello di salute')
+# plt.title('Distribuzione Salute Generale')
+#
+# tab = pd.crosstab(data2.GenHlth, data2.Diabetes_binary, normalize='index') * 100
+# ax = tab.plot(kind="bar", figsize=(15, 6), color=colors)
+# ax.legend(title='Diabete', loc='upper right', bbox_to_anchor=(1, 1))
+# plt.title('Diabete x Salute Generale')
+# plt.xlabel('Salute Generale')
+# plt.xticks(rotation=0)
+# plt.ylabel('Percentuale')
+# for p in ax.containers:
+#     ax.bar_label(p, label_type='edge', labels=[f'{x:.2f}%' for x in p.datavalues])
+# plt.show()
+#
+# # Analizziamo il rapporto tra Salute Mentale e incidenza del diabete
+# data2['MentHlth'].value_counts().sort_values(ascending=True).plot(figsize=(10, 10), kind='bar', color='dodgerblue')
+# plt.ylabel('Popolazione')
+# plt.xlabel('Giorni')
+# plt.xticks(rotation=0)
+# plt.title('Distribuzione Salute Mentale')
+#
+# tab = pd.crosstab(data2.MentHlth, data2.Diabetes_binary, normalize='index') * 100
+# ax = tab.plot(kind="bar", figsize=(15, 6), color=colors)
+# ax.legend(title='Diabete', loc='upper right', bbox_to_anchor=(1, 1))
+# plt.title('Diabete x Salute Mentale')
+# plt.xlabel('Giorni')
+# plt.xticks(rotation=0)
+# plt.ylabel('Percentuale')
+# for p in ax.containers:
+#     ax.bar_label(p, label_type='edge', labels=[f'{x:.1f}%' for x in p.datavalues])
+# plt.show()
+#
+# # Crosstab tra diabete e Age
+# data2['Age'].value_counts().sort_values(ascending=True).plot(figsize=(10, 10), kind='bar', color='dodgerblue')
+# plt.ylabel('Popolazione')
+# plt.xlabel('Fasce di eta')
+# plt.xticks(rotation=0)
+# plt.title('Distribuzione Age')
+# plt.show()
+#
+# tab = pd.crosstab(data2.Age, data2.Diabetes_binary, normalize='index') * 100
+# ax = tab.plot(kind="bar", figsize=(15, 6), color=colors)
+# ax.legend(title='Diabete')
+# plt.title('Distribuzione frequenze Diabete x Age')
+# plt.xlabel('Fasce di eta')
+# plt.xticks(rotation=0)
+# plt.ylabel('Percentuale')
+# for p in ax.containers:
+#     ax.bar_label(p, label_type='edge', labels=[f'{x:.2f}%' for x in p.datavalues])
+# plt.show()
+#
+# # Crosstab tra diabete e Salute fisica
+# data2['PhysHlth'].value_counts().sort_values(ascending=True).plot(figsize=(10, 10), kind='bar', color='dodgerblue')
+# plt.ylabel('Popolazione')
+# plt.xlabel('Giorni')
+# plt.xticks(rotation=0)
+# plt.title('Distribuzione Problemi Fisici')
+#
+# tab = pd.crosstab(data2.PhysHlth, data2.Diabetes_binary, normalize='index') * 100
+# ax = tab.plot(kind="bar", figsize=(15, 6), color=colors)
+# ax.legend(title='Diabete', loc='upper right', bbox_to_anchor=(1, 1))
+# plt.title('Diabete x Problemi fisici')
+# plt.xlabel('Giorni')
+# plt.xticks(rotation=0)
+# plt.ylabel('Percentuale')
+# for p in ax.containers:
+#     ax.bar_label(p, label_type='edge', labels=[f'{x:.2f}%' for x in p.datavalues])
+# plt.show()
+#
+# # Matrice correlazione
+# plt.figure(figsize=(15, 15))
+# sn.heatmap(data.corr(), square=True, annot=True, cmap='YlGnBu', fmt='.2f', robust=True)
+# plt.title("Matrice Correlazione")
+# plt.show()
+#
+# # Istogramma correlazione con Diabetes_Binary
+# plt.figure(figsize=(15, 15))
+# corr = data.corr().sort_values(by='Diabetes_binary', ascending=False)
+# corr = corr[corr.index != 'Diabetes_binary']
+# corr['Diabetes_binary'].plot(kind='bar', color='firebrick')
+# plt.xlabel('Features')
+# plt.ylabel('Correlazione')
+# plt.title('Correlazione con Diabete')
+# plt.axhline(y=0.05, linestyle='--', color='gray')
+# plt.axhline(y=-0.05, linestyle='--', color='gray')
+# plt.show()
 
 # Vengono eliminate le features meno significative
 x = data.drop(['Diabetes_binary', 'MentHlth', 'Smoker', 'Sex', 'AnyHealthcare', 'NoDocbcCost', 'Fruits', 'Veggies'],
@@ -348,30 +352,15 @@ classifiers = [
     RandomForestClassifier(max_depth=7)]
 
 results_bal = pd.DataFrame(columns=["Classifier", "Accuracy", "Precision", "Recall", "F1-Score"])
-params = [
-    {
-        'max_depth': [3, 5, 7, 9, None],
-        'criterion': ['gini', 'entropy'],
-        'splitter': ['best', 'random']
-    },  # Decision Tree
 
-    {
-        'n_estimators': [10, 50, 100, 200],
-        'max_depth': [3, 5, 7, 9, None],
-        'criterion': ['gini', 'entropy']
-    }  # Random Forest
-]
-
-sm = SMOTE(random_state=1412)
-x, y = sm.fit_resample(x, y)
-X_train, X_test, Y_train, Y_test = train_test_split(x, y, test_size=0.3, random_state=0)
+X_train, X_test, Y_train, Y_test = train_test_split(x, y, test_size=0.3, random_state=42, stratify=y)
+sm = SMOTE(random_state=42)
+X_train_res, Y_train_res = sm.fit_resample(X_train, Y_train)
 
 print("_____________________________________________________________________________")
-for name, classifier, param in zip(names, classifiers, params):
+for name, clf in zip(names, classifiers):
     print('\n -> ' + name)
-    clf = GridSearchCV(classifier, param_grid=param, cv=10, n_jobs=-1)
-    clf.fit(X_train, Y_train)
-    print(f'Best parameters for {name} with Balanced Set: {clf.best_params_}')
+    clf.fit(X_train_res, Y_train_res)
     Y_pred = clf.predict(X_test)
     matrix = confusion_matrix(Y_test, Y_pred)
     print("\n***************************** Matrice Confusione ****************************\n", matrix)
@@ -385,6 +374,28 @@ for name, classifier, param in zip(names, classifiers, params):
                                                         "Recall": report['macro avg']['recall'],
                                                         "F1-Score": report['macro avg']['f1-score']},
                                                        index=[0])], ignore_index=True)
+
+    test_instance = X_test.iloc[1]
+    explainer = lime_tabular.LimeTabularExplainer(training_data=X_train_res.values,
+                                                  feature_names=X_train_res.columns.values,
+                                                  class_names=['0', '1'],
+                                                  mode='classification')
+
+    # Spiegazione modello su istanza di test
+    exp = explainer.explain_instance(test_instance.values, clf.predict_proba, num_features=16)
+
+    # Visualizzazione spiegazione come barplot
+    fig = exp.as_pyplot_figure()
+    fig.set_size_inches(20, 6)
+    plt.show()
+    coef = pd.DataFrame(exp.as_list())
+    print(coef)
+
+    # Crea l'oggetto explainer di SHAP
+    explainer = shap.TreeExplainer(clf)
+    # Calcola i valori SHAP per il dataset di test
+    shap_values = explainer.shap_values(X_test[:10000])
+    shap.summary_plot(shap_values[1], X_test[:10000], plot_type='violin', plot_size=0.6)
 
 print()
 print("____________________________RISULTATI(Balanced)______________________________")

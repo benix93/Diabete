@@ -1,6 +1,9 @@
+import lime as lime
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sn
+import shap as shap
+import numpy as np
 from imblearn.over_sampling import SMOTE
 from lightgbm import LGBMClassifier
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
@@ -13,6 +16,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier
+from lime import lime_tabular
 import time
 
 start_time = time.time()
@@ -338,7 +342,7 @@ plt.axhline(y=-0.05, linestyle='--', color='gray')
 plt.show()
 
 # Vengono eliminate le features meno significative
-x = data.drop(['Diabetes_binary', 'MentHlth', 'Smoker', 'Sex', 'AnyHealthcare', 'NoDocbcCost', 'Fruits', 'Veggies'],
+x = data.drop(['Diabetes_binary', 'Sex', 'AnyHealthcare', 'NoDocbcCost', 'Fruits', 'Veggies'],
               axis=1)
 y = data['Diabetes_binary']
 
@@ -362,77 +366,68 @@ results_bal = pd.DataFrame(columns=["Classifier", "Accuracy", "Precision", "Reca
 
 params = [
     {
-        'max_depth': [5, 7, 9, None],
-        'criterion': ['gini', 'entropy'],
-        'splitter': ['best', 'random']
+        'max_depth': [ None],
+        'criterion': ['entropy'],
+        'splitter': ['best']
     },  # Decision Tree
 
     {
-        'n_estimators': [50, 100, 200],
-        'max_depth': [5, 7, 9],
-        'criterion': ['gini', 'entropy']
+        'n_estimators': [200],
+        'max_depth': [None],
+        'criterion': ['gini']
     },  # Random Forest
 
     {
-        'penalty': ['l1', 'l2'],
-        'C': [0.1, 1, 5, 10],
-        'solver': ['lbfgs', 'liblinear', 'sag', 'saga'],
-        'max_iter': [1500, 2000, 3000]
+        'penalty': ['l1'],
+        'C': [1],
+        'solver': ['liblinear'],
+        'max_iter': [1500]
     },  # Logistic Regression
 
     {
-        'n_neighbors': [3, 5, 7],
-        'weights': ['uniform', 'distance'],
-        'algorithm': ['auto', 'ball_tree', 'kd_tree'],
-        'p': [1, 2]
+        'n_neighbors': [7],
+        'weights': ['distance'],
+        'algorithm': ['auto']
     },  # KNN
 
-    {'alpha': [0, 0.5, 1]},  # Naive Bayes
+    {},  # Naive Bayes
 
     {
-        'learning_rate': [0.25, 0.5, 0.75],
-        'n_estimators': [50, 100, 200],
-        'max_depth': [5, 7, 9]
+        'learning_rate': [0.75],
+        'n_estimators': [200],
+        'max_depth': [9]
     },  # GradientBoost
 
     {
-        'learning_rate': [0.25, 0.5, 0.75],
-        'n_estimators': [50, 100, 200],
-        'max_depth': [5, 7, 9]
+        'learning_rate': [1],
+        'n_estimators': [200],
+        'max_depth': [9]
     },  # XGB
 
     {
-        'learning_rate': [0.25, 0.5, 0.75],
-        'n_estimators': [50, 100, 200],
-        'max_depth': [5, 7, 9]
+        'learning_rate': [0.75],
+        'n_estimators': [200],
+        'max_depth': [9]
     },  # LGBM
 
     {
-        'C': [0.1, 1, 5, 10],
-        'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
-        'degree': [2, 3, 4],
-        'gamma': ['scale', 'auto']
+        'C': [0.1, 1],
+        'kernel': ['linear'],
+        'gamma': ['auto']
     },  # SVM
 
     {
-        'n_estimators': [50, 100, 200],
-        'learning_rate': [0.1, 0.25, 0.5],
+        'n_estimators': [100, 150, 200],
+        'learning_rate': [0.5, 0.75, 1],
         'algorithm': ['SAMME', 'SAMME.R']
     }  # AdaBoost
 ]
+
 param_results = pd.DataFrame(columns=["Classifier", "Best Parameters"])
 
 X_train, X_test, Y_train, Y_test = train_test_split(x, y, test_size=0.3, random_state=42, stratify=y)
 sm = SMOTE(random_state=42)
 X_train_res, Y_train_res = sm.fit_resample(X_train, Y_train)
-
-plt.figure(figsize=(10, 10))
-colors = ['dodgerblue', 'crimson']
-Y_train_res.value_counts().plot.bar(color=colors)
-plt.ylabel('Popolazione')
-plt.xlabel('Diabete')
-plt.title('Distribuzione diabete Resampled')
-plt.show()
 
 print("_____________________________________________________________________________")
 for name, classifier, param in zip(names, classifiers, params):
@@ -457,6 +452,31 @@ for name, classifier, param in zip(names, classifiers, params):
     param_results = pd.concat([param_results, pd.DataFrame({"Classifier": name,
                                                             "Best Parameters": [clf.best_params_]},
                                                            index=[0])], ignore_index=True)
+
+    # # LIME
+    # test_instance = X_test.iloc[1]
+    # explainer = lime_tabular.LimeTabularExplainer(training_data=X_train_res.values,
+    #                                               feature_names=X_train_res.columns.values,
+    #                                               class_names=['0', '1'],
+    #                                               mode='classification')
+    #
+    # # Spiegazione modello su istanza di test
+    # exp = explainer.explain_instance(test_instance.values, clf.predict_proba, num_features=16)
+    #
+    # # Visualizzazione spiegazione come barplot
+    # fig = exp.as_pyplot_figure()
+    # fig.set_size_inches(20, 6)
+    # plt.show()
+    # coef = pd.DataFrame(exp.as_list())
+    # print(coef)
+    #
+    # # SHAP
+    # explainer = shap.TreeExplainer(clf)
+    # # Calcola i valori SHAP per il dataset di test
+    # shap_values = explainer.shap_values(X_test)
+    # shap.summary_plot(shap_values[0], X_test, plot_type='violin', plot_size=0.6)
+
+
 
 # Stampa dei risultati in una tabella
 print()
