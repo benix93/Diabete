@@ -342,7 +342,7 @@ plt.axhline(y=-0.05, linestyle='--', color='gray')
 plt.show()
 
 # Vengono eliminate le features meno significative
-x = data.drop(['Diabetes_binary', 'Sex', 'AnyHealthcare', 'NoDocbcCost', 'Fruits', 'Veggies', 'HvyAlcoholConsump'],
+x = data.drop(['Diabetes_binary', 'Sex', 'AnyHealthcare', 'NoDocbcCost', 'Fruits', 'Veggies'],
               axis=1)
 y = data['Diabetes_binary']
 
@@ -350,20 +350,78 @@ names = ["Decision Tree", 'Random Forest', 'Logistic Regression', 'Nearest Neigh
          'XGB', 'LGBM', 'SVC', 'AdaBoost']
 
 classifiers = [
-    DecisionTreeClassifier(criterion='entropy', max_depth=None, splitter='best'),
-    RandomForestClassifier(criterion='gini', max_depth=None, n_estimators=200),
-    LogisticRegression(C=1, max_iter=1500, penalty='l1', solver='liblinear'),
-    KNeighborsClassifier(algorithm='auto', n_neighbors=7, weights='distance'),
+    DecisionTreeClassifier(),
+    RandomForestClassifier(),
+    LogisticRegression(),
+    KNeighborsClassifier(),
     GaussianNB(),
-    GradientBoostingClassifier(learning_rate=0.75, max_depth=9, n_estimators=200),
-    XGBClassifier(learning_rate=1, max_depth=9, n_estimators=200),
-    LGBMClassifier(learning_rate=0.75, max_depth=9, n_estimators=200),
-    SVC(C=1, gamma='auto', kernel='linear'),
-    AdaBoostClassifier(algorithm='SAMME.R', learning_rate=1, n_estimators=150)
+    GradientBoostingClassifier(),
+    XGBClassifier(),
+    LGBMClassifier(),
+    SVC(),
+    AdaBoostClassifier()
 ]
 
 results_bal = pd.DataFrame(columns=["Classifier", "Accuracy", "Precision", "Recall", "F1-Score"])
 
+params = [
+    {
+        'max_depth': [5, 7, 9, None],
+        'criterion': ['gini', 'entropy'],
+        'splitter': ['best', 'random']
+    },  # Decision Tree
+
+    {
+        'n_estimators': [50, 100, 200],
+        'max_depth': [5, 7, 9, None],
+        'criterion': ['gini', 'entropy']
+    },  # Random Forest
+
+    {
+        'penalty': ['l1', 'l2'],
+        'C': [1, 5, 10],
+        'solver': ['lbfgs', 'liblinear', 'saga'],
+        'max_iter': [1500, 2000, 3000]
+    },  # Logistic Regression
+
+    {
+        'n_neighbors': [5, 7],
+        'weights': ['uniform', 'distance'],
+        'algorithm': ['auto', 'ball_tree', 'kd_tree']
+    },  # KNN
+
+    {},  # Naive Bayes
+
+    {
+        'learning_rate': [0.5, 0.75, 1],
+        'n_estimators': [100, 150, 200],
+        'max_depth': [5, 7, 9]
+    },  # GradientBoost
+
+    {
+        'learning_rate': [0.5, 0.75, 1],
+        'n_estimators': [100, 150, 200],
+        'max_depth': [5, 7, 9]
+    },  # XGB
+
+    {
+        'learning_rate': [0.5, 0.75, 1],
+        'n_estimators': [100, 150, 200],
+        'max_depth': [5, 7, 9]
+    },  # LGBM
+
+    {
+        'C': [0.1, 1, 10],
+        'kernel': ['linear', 'rbf'],
+        'gamma': ['scale', 'auto']
+    },  # SVM
+
+    {
+        'n_estimators': [100, 150, 200],
+        'learning_rate': [0.5, 0.75, 1],
+        'algorithm': ['SAMME', 'SAMME.R']
+    }  # AdaBoost
+]
 param_results = pd.DataFrame(columns=["Classifier", "Best Parameters"])
 
 X_train, X_test, Y_train, Y_test = train_test_split(x, y, test_size=0.3, random_state=42, stratify=y)
@@ -371,9 +429,12 @@ sm = SMOTE(random_state=42)
 X_train_res, Y_train_res = sm.fit_resample(X_train, Y_train)
 
 print("_____________________________________________________________________________")
-for name, clf in zip(names, classifiers):
+for name, classifier, param in zip(names, classifiers, params):
     print('\n -> ' + name)
+    clf = GridSearchCV(classifier, param_grid=param, cv=5, n_jobs=-1, scoring='f1_macro')
     clf.fit(X_train_res, Y_train_res)
+    print(f'Migliori parametri per {name}: {clf.best_params_}')
+
     Y_pred = clf.predict(X_test)
     matrix = confusion_matrix(Y_test, Y_pred)
     print("\n***************************** Matrice Confusione ****************************\n", matrix)
@@ -387,25 +448,10 @@ for name, clf in zip(names, classifiers):
                                                         "F1-Score": report['macro avg']['f1-score']},
                                                        index=[0])], ignore_index=True)
 
-    # LIME
-    test_instance = X_test.iloc[1]
-    explainer = lime_tabular.LimeTabularExplainer(training_data=X_train_res.values,
-                                                  feature_names=X_train_res.columns,
-                                                  class_names=['0', '1'],
-                                                  mode='classification')
-    exp = explainer.explain_instance(test_instance.values, clf.predict_proba, num_features=16)
+    param_results = pd.concat([param_results, pd.DataFrame({"Classifier": name,
+                                                            "Best Parameters": [clf.best_params_]},
+                                                           index=[0])], ignore_index=True)
 
-    # Visualizzazione come barplot
-    fig = exp.as_pyplot_figure()
-    fig.set_size_inches(20, 6)
-    plt.show()
-    coef = pd.DataFrame(exp.as_list())
-    print(coef)
-
-    # SHAP
-    explainer = shap.TreeExplainer(clf)
-    shap_values = explainer.shap_values(X_test[:10000])
-    shap.summary_plot(shap_values[1], X_test[:10000], plot_type='violin', plot_size=0.6)
 
 # Stampa dei risultati in una tabella
 print()
@@ -413,5 +459,9 @@ print("_______________________________ RISULTATI _______________________________
 print(results_bal)
 print("_____________________________________________________________________________\n")
 results_bal.to_csv("results_bal.csv")
+
+print("\n________________________ RISULTATI PARAMETRI ______________________________\n")
+print(param_results)
+param_results.to_csv("best_params.csv")
 
 print("Tempo di esecuzione --- %s secondi ---" % (time.time() - start_time))
