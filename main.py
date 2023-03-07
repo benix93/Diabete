@@ -373,8 +373,10 @@ X_train_res, Y_train_res = sm.fit_resample(X_train, Y_train)
 print("_____________________________________________________________________________")
 for name, clf in zip(names, classifiers):
     print('\n -> ' + name)
-    clf.fit(X_train_res, Y_train_res)
-    Y_pred = clf.predict(X_test)
+
+    # Passo i valori per evitare la failure con XGB quando uso LIME
+    clf.fit(X_train_res.values, Y_train_res)
+    Y_pred = clf.predict(X_test.values)
     matrix = confusion_matrix(Y_test, Y_pred)
     print("\n***************************** Matrice Confusione ****************************\n", matrix)
     print("_____________________________________________________________________________")
@@ -388,25 +390,43 @@ for name, clf in zip(names, classifiers):
                                                        index=[0])], ignore_index=True)
 
     # LIME
-    test_instance = X_test.iloc[1]
+    # Seleziono la prima riga con classe pari a 1
+    test_instance = X_test.loc[Y_test == 1].iloc[0]
+    X_test.columns = ['HighBP', 'HighChol', 'CholCheck', 'BMI', 'Smoker', 'Stroke',
+                      'HeartDiseaseorAttack', 'PhysActivity', 'GenHlth', 'MentHlth', 'PhysHlth',
+                      'DiffWalk', 'Age', 'Education', 'Income']
+
     explainer = lime_tabular.LimeTabularExplainer(training_data=X_train_res.values,
                                                   feature_names=X_train_res.columns,
-                                                  class_names=['0', '1'],
+                                                  class_names=['No Diabete', 'Si Diabete'],
                                                   mode='classification')
-    exp = explainer.explain_instance(test_instance.values, clf.predict_proba, num_features=16)
 
-    # Visualizzazione come barplot
-    fig = exp.as_pyplot_figure()
-    fig.set_size_inches(20, 6)
-    plt.show()
+    exp = explainer.explain_instance(test_instance.values, clf.predict_proba, num_features=15)
+
+    # Recupero l'esito della predizione
+    pred_label = clf.predict([test_instance])[0]
+    if(pred_label == 0):
+        pred_label = 'SI'
+    else:
+        pred_label = 'NO'
+
     coef = pd.DataFrame(exp.as_list())
     print(coef)
+    coef_sum = coef[1].sum()
+    print("Somma dei coefficienti: ", round(coef_sum,2))
+
+    # Visualizzazione come barplot con il nome del modello e la classe predetta
+    fig = exp.as_pyplot_figure()
+    fig.suptitle(f'   Classificatore: {name}   |   Classe predetta: {pred_label}   |   Valore totale: {round(coef_sum,2)}')
+    fig.set_size_inches(20, 6)
+    plt.show()
 
     # SHAP
     explainer = shap.TreeExplainer(clf)
-    shap_values = explainer.shap_values(X_test[:10000])
-    shap.summary_plot(shap_values[1], X_test[:10000], plot_type='violin', plot_size=0.6)
-
+    shap_values = explainer.shap_values(X_test[:5000])
+    shap.summary_plot(shap_values[1], X_test[:5000], plot_type='violin', plot_size=0.6, show=False)
+    plt.title(f'Classificatore: {name}')
+    plt.show()
 # Stampa dei risultati in una tabella
 print()
 print("_______________________________ RISULTATI ___________________________________")
