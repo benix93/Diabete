@@ -1,23 +1,20 @@
-import lime as lime
+import time
+
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sn
-import shap as shap
-import numpy as np
+from catboost import CatBoostClassifier
 from imblearn.over_sampling import SMOTE
 from lightgbm import LGBMClassifier
+from lime import lime_tabular
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
-from sklearn.linear_model import LogisticRegression, Perceptron
-from sklearn.metrics import confusion_matrix, classification_report, accuracy_score, precision_score, recall_score, \
-    f1_score
-from sklearn.model_selection import train_test_split, cross_val_score, cross_val_predict, GridSearchCV
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier
-from lime import lime_tabular
-import time
 
 start_time = time.time()
 data = pd.read_csv("diabetes_binary_health_indicators_BRFSS2015.csv")
@@ -289,7 +286,7 @@ plt.show()
 # Crosstab tra diabete e Age
 data2['Age'].value_counts().sort_values(ascending=True).plot(figsize=(10, 10), kind='bar', color='dodgerblue')
 plt.ylabel('Popolazione')
-plt.xlabel('Fasce di eta')
+plt.xlabel('Fasce di etá')
 plt.xticks(rotation=0)
 plt.title('Distribuzione Age')
 plt.show()
@@ -298,7 +295,7 @@ tab = pd.crosstab(data2.Age, data2.Diabetes_binary, normalize='index') * 100
 ax = tab.plot(kind="bar", figsize=(15, 6), color=colors)
 ax.legend(title='Diabete')
 plt.title('Distribuzione frequenze Diabete x Age')
-plt.xlabel('Fasce di eta')
+plt.xlabel('Fasce di etá')
 plt.xticks(rotation=0)
 plt.ylabel('Percentuale')
 for p in ax.containers:
@@ -337,45 +334,45 @@ corr['Diabetes_binary'].plot(kind='bar', color='firebrick')
 plt.xlabel('Features')
 plt.ylabel('Correlazione')
 plt.title('Correlazione con Diabete')
-plt.axhline(y=0.05, linestyle='--', color='gray')
-plt.axhline(y=-0.05, linestyle='--', color='gray')
+plt.axhline(y=0.025, linestyle='--', color='gray')
+plt.axhline(y=-0.025, linestyle='--', color='gray')
 plt.show()
 
 # Vengono eliminate le features meno significative
-x = data.drop(['Diabetes_binary', 'Sex', 'AnyHealthcare', 'NoDocbcCost', 'Fruits', 'Veggies', 'HvyAlcoholConsump'],
+x = data.drop(['Diabetes_binary', 'AnyHealthcare', 'NoDocbcCost', 'Fruits', 'Veggies', 'HvyAlcoholConsump'],
               axis=1)
 y = data['Diabetes_binary']
 
 names = ["Decision Tree", 'Random Forest', 'Logistic Regression', 'Nearest Neighbors', "Naive Bayes", 'GradientBoost',
-         'XGB', 'LGBM', 'SVC', 'AdaBoost']
+         'XGB', 'LGBM', 'CatBoost', 'AdaBoost']
 
 classifiers = [
-    DecisionTreeClassifier(criterion='entropy', max_depth=None, splitter='best'),
+    DecisionTreeClassifier(criterion='gini', max_depth=None, splitter='best'),
     RandomForestClassifier(criterion='gini', max_depth=None, n_estimators=200),
-    LogisticRegression(C=1, max_iter=1500, penalty='l1', solver='liblinear'),
+    LogisticRegression(C=10, max_iter=2000, penalty='l2', solver='saga'),
     KNeighborsClassifier(algorithm='auto', n_neighbors=7, weights='distance'),
     GaussianNB(),
-    GradientBoostingClassifier(learning_rate=0.75, max_depth=9, n_estimators=200),
-    XGBClassifier(learning_rate=1, max_depth=9, n_estimators=200),
-    LGBMClassifier(learning_rate=0.75, max_depth=9, n_estimators=200),
-    SVC(C=1, gamma='auto', kernel='linear'),
-    AdaBoostClassifier(algorithm='SAMME.R', learning_rate=1, n_estimators=150)
+    GradientBoostingClassifier(learning_rate=0.5, max_depth=9, n_estimators=250),
+    XGBClassifier(learning_rate=1, max_depth=9, n_estimators=250),
+    LGBMClassifier(learning_rate=0.75, max_depth=9, n_estimators=250),
+    CatBoostClassifier(depth=9, iterations=250, learning_rate=1),
+    AdaBoostClassifier(algorithm='SAMME.R', learning_rate=1, n_estimators=250)
 ]
 
 results_bal = pd.DataFrame(columns=["Classifier", "Accuracy", "Precision", "Recall", "F1-Score"])
-
 param_results = pd.DataFrame(columns=["Classifier", "Best Parameters"])
 
-X_train, X_test, Y_train, Y_test = train_test_split(x, y, test_size=0.3, random_state=42, stratify=y)
+X_train, X_test, Y_train, Y_test = train_test_split(x, y, test_size=0.2, random_state=42, stratify=y)
+# Utilizzo SMOTE
 sm = SMOTE(random_state=42)
-X_train_res, Y_train_res = sm.fit_resample(X_train, Y_train)
+X_train, Y_train = sm.fit_resample(X_train, Y_train)
 
 print("_____________________________________________________________________________")
 for name, clf in zip(names, classifiers):
     print('\n -> ' + name)
 
     # Passo i valori per evitare la failure con XGB quando uso LIME
-    clf.fit(X_train_res.values, Y_train_res)
+    clf.fit(X_train.values, Y_train)
     Y_pred = clf.predict(X_test.values)
     matrix = confusion_matrix(Y_test, Y_pred)
     print("\n***************************** Matrice Confusione ****************************\n", matrix)
@@ -392,24 +389,17 @@ for name, clf in zip(names, classifiers):
     # LIME
     # Seleziono la prima riga con classe pari a 1
     test_instance = X_test.loc[Y_test == 1].iloc[0]
-    X_test.columns = ['HighBP', 'HighChol', 'CholCheck', 'BMI', 'Smoker', 'Stroke',
-                      'HeartDiseaseorAttack', 'PhysActivity', 'GenHlth', 'MentHlth', 'PhysHlth',
-                      'DiffWalk', 'Age', 'Education', 'Income']
 
-    explainer = lime_tabular.LimeTabularExplainer(training_data=X_train_res.values,
-                                                  feature_names=X_train_res.columns,
-                                                  class_names=['No Diabete', 'Si Diabete'],
+    explainer = lime_tabular.LimeTabularExplainer(training_data=X_train.values,
+                                                  feature_names=X_train.columns.values,
+                                                  class_names=[': No Diabete', ': Si Diabete'],
                                                   mode='classification')
 
-    exp = explainer.explain_instance(test_instance.values, clf.predict_proba, num_features=15)
+    exp = explainer.explain_instance(test_instance.values, clf.predict_proba, num_features=len(X_train.columns))
 
     # Recupero l'esito della predizione
     pred_label = clf.predict([test_instance])[0]
-    if(pred_label == 0):
-        pred_label = 'SI'
-    else:
-        pred_label = 'NO'
-
+    pred_label = 'SI' if pred_label == 0 else 'NO'
     coef = pd.DataFrame(exp.as_list())
     print(coef)
     coef_sum = coef[1].sum()
@@ -417,16 +407,17 @@ for name, clf in zip(names, classifiers):
 
     # Visualizzazione come barplot con il nome del modello e la classe predetta
     fig = exp.as_pyplot_figure()
-    fig.suptitle(f'   Classificatore: {name}   |   Classe predetta: {pred_label}   |   Valore totale: {round(coef_sum,2)}')
+    fig.suptitle(f'     Classificatore: {name}   |   Classe predetta: {pred_label}   |   Valore totale: {round(coef_sum,2)}')
     fig.set_size_inches(20, 6)
     plt.show()
 
-    # SHAP
-    explainer = shap.TreeExplainer(clf)
-    shap_values = explainer.shap_values(X_test[:5000])
-    shap.summary_plot(shap_values[1], X_test[:5000], plot_type='violin', plot_size=0.6, show=False)
-    plt.title(f'Classificatore: {name}')
-    plt.show()
+    # # SHAP
+    # explainer = shap.Explainer(clf)
+    # shap_values = explainer.shap_values(X_test[:100])
+    # shap.summary_plot(shap_values[1], X_test[:100], plot_type='violin', plot_size=0.6, show=False)
+    # plt.title(f'Classificatore: {name}')
+    # plt.show()
+
 # Stampa dei risultati in una tabella
 print()
 print("_______________________________ RISULTATI ___________________________________")
