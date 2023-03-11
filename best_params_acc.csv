@@ -1,11 +1,2 @@
 ,Classifier,Best Parameters
-0,Decision Tree,"{'criterion': 'gini', 'max_depth': None, 'splitter': 'best'}"
-1,Random Forest,"{'criterion': 'gini', 'max_depth': None, 'n_estimators': 200}"
-2,Logistic Regression,"{'C': 10, 'max_iter': 2000, 'penalty': 'l2', 'solver': 'saga'}"
-3,Nearest Neighbors,"{'algorithm': 'auto', 'n_neighbors': 7, 'weights': 'distance'}"
-4,Naive Bayes,{}
-5,GradientBoost,"{'learning_rate': 0.5, 'max_depth': 9, 'n_estimators': 250}"
-6,XGB,"{'learning_rate': 1, 'max_depth': 9, 'n_estimators': 250}"
-7,LGBM,"{'learning_rate': 0.75, 'max_depth': 9, 'n_estimators': 250}"
-8,CatBoost,"{'depth': 9, 'iterations': 250, 'learning_rate': 1}"
-9,AdaBoost,"{'algorithm': 'SAMME.R', 'learning_rate': 1, 'n_estimators': 250}"
+0,AdaBoost,"{'base_estimator': DecisionTreeClassifier(max_depth=5), 'base_estimator__max_depth': 5, 'base_estimator__min_samples_leaf': 1, 'base_estimator__min_samples_split': 2, 'learning_rate': 1, 'n_estimators': 200}"

@@ -1,6 +1,7 @@
 import time
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sn
 from catboost import CatBoostClassifier
@@ -8,11 +9,13 @@ from imblearn.over_sampling import SMOTE
 from lightgbm import LGBMClassifier
 from lime import lime_tabular
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import confusion_matrix, classification_report
-from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression, Perceptron
+from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
+from sklearn.model_selection import train_test_split, KFold, cross_val_score, cross_val_predict, StratifiedKFold, \
+    GridSearchCV
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier
 
@@ -106,12 +109,11 @@ def days_map(x):
         return 3
 
 
-data['BMI'] = data["BMI"].apply(bmi_map)
-data['Age'] = data["Age"].apply(age_map)
-data['PhysHlth'] = data["PhysHlth"].apply(days_map)
-data['MentHlth'] = data["MentHlth"].apply(days_map)
-
 data2 = data.copy()
+data2['BMI'] = data2["BMI"].apply(bmi_map)
+data2['Age'] = data2["Age"].apply(age_map)
+data2['PhysHlth'] = data2["PhysHlth"].apply(days_map)
+data2['MentHlth'] = data2["MentHlth"].apply(days_map)
 data2['Diabetes_binary'] = data2['Diabetes_binary'].replace({0: 'No', 1: 'Si'})
 data2['Smoker'] = data2['Smoker'].replace({0: 'No', 1: 'Si'})
 data2['Sex'] = data2['Sex'].replace({0: 'Uomo', 1: 'Donna'})
@@ -334,95 +336,134 @@ corr['Diabetes_binary'].plot(kind='bar', color='firebrick')
 plt.xlabel('Features')
 plt.ylabel('Correlazione')
 plt.title('Correlazione con Diabete')
-plt.axhline(y=0.025, linestyle='--', color='gray')
-plt.axhline(y=-0.025, linestyle='--', color='gray')
+plt.axhline(y=0.05, linestyle='--', color='gray')
+plt.axhline(y=-0.05, linestyle='--', color='gray')
 plt.show()
 
 # Vengono eliminate le features meno significative
-x = data.drop(['Diabetes_binary', 'AnyHealthcare', 'NoDocbcCost', 'Fruits', 'Veggies', 'HvyAlcoholConsump'],
-              axis=1)
+X = data.drop(['Diabetes_binary', 'AnyHealthcare', 'NoDocbcCost', 'Fruits', 'Veggies', 'Sex'], axis=1)
 y = data['Diabetes_binary']
 
 names = ["Decision Tree", 'Random Forest', 'Logistic Regression', 'Nearest Neighbors', "Naive Bayes", 'GradientBoost',
          'XGB', 'LGBM', 'CatBoost', 'AdaBoost']
 
+# classifiers = [
+#     DecisionTreeClassifier(criterion='gini', max_depth=15, splitter='best', min_samples_leaf=2),
+#     RandomForestClassifier(criterion='gini', max_depth=20, max_features='log2', n_estimators=200, min_samples_leaf=1, min_samples_split=2, random_state=42),
+#     LogisticRegression(C=0.25, penalty='l1', solver='liblinear', random_state=42),
+#     KNeighborsClassifier(algorithm='kd_tree', n_neighbors=5, weights='distance'),
+#     GaussianNB(var_smoothing=1e-09),
+#     GradientBoostingClassifier(learning_rate=0.5, max_depth=5, n_estimators=200, criterion='friedman_mse', max_features='sqrt', random_state=42),
+#     XGBClassifier(eval_metric='error', learning_rate=0.1, max_depth=5, n_estimators=200, min_child_weight=10, random_state=42),
+#     LGBMClassifier(boosting_type='gbdt', learning_rate=0.1, max_depth=5, n_estimators=200, num_leaves=12, objective='binary'),
+#     CatBoostClassifier(depth=6, iterations=500, leaf_estimation_iterations=10, logging_level='Silent', loss_function='Logloss', random_seed=42),
+#     AdaBoostClassifier(estimator=DecisionTreeClassifier(), algorithm='SAMME.R', learning_rate=0.5, n_estimators=200)
+# ]
+
 classifiers = [
-    DecisionTreeClassifier(criterion='gini', max_depth=None, splitter='best'),
-    RandomForestClassifier(criterion='gini', max_depth=None, n_estimators=200),
-    LogisticRegression(C=10, max_iter=2000, penalty='l2', solver='saga'),
-    KNeighborsClassifier(algorithm='auto', n_neighbors=7, weights='distance'),
+    DecisionTreeClassifier(),
+    RandomForestClassifier(random_state=42),
+    LogisticRegression(random_state=42),
+    KNeighborsClassifier(),
     GaussianNB(),
-    GradientBoostingClassifier(learning_rate=0.5, max_depth=9, n_estimators=250),
-    XGBClassifier(learning_rate=1, max_depth=9, n_estimators=250),
-    LGBMClassifier(learning_rate=0.75, max_depth=9, n_estimators=250),
-    CatBoostClassifier(depth=9, iterations=250, learning_rate=1),
-    AdaBoostClassifier(algorithm='SAMME.R', learning_rate=1, n_estimators=250)
-]
+    GradientBoostingClassifier(random_state=42),
+    XGBClassifier(random_state=42),
+    LGBMClassifier(),
+    CatBoostClassifier(random_state=42, verbose=False),
+    AdaBoostClassifier(estimator=DecisionTreeClassifier())
+] # Recall
 
-results_bal = pd.DataFrame(columns=["Classifier", "Accuracy", "Precision", "Recall", "F1-Score"])
-param_results = pd.DataFrame(columns=["Classifier", "Best Parameters"])
+results_cv = pd.DataFrame(columns=["Classifier", "Accuracy", "Precision", "Recall", "F1-Score", "Time"])
+results_test = pd.DataFrame(columns=["Classifier", "Accuracy", "Precision", "Recall", "F1-Score", "Time"])
 
-X_train, X_test, Y_train, Y_test = train_test_split(x, y, test_size=0.2, random_state=42, stratify=y)
-# Utilizzo SMOTE
-sm = SMOTE(random_state=42)
-X_train, Y_train = sm.fit_resample(X_train, Y_train)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
 
+scaler = StandardScaler()
+X_train = pd.DataFrame(scaler.fit_transform(X_train), columns=X.columns)
+X_test = pd.DataFrame(scaler.transform(X_test), columns=X.columns)
+
+# SMOTE
+smote = SMOTE(sampling_strategy=1, random_state=42)
+X_train, y_train = smote.fit_resample(X_train, y_train)
+
+# cv = StratifiedKFold(n_splits=10, random_state=1, shuffle=True)
 print("_____________________________________________________________________________")
-for name, clf in zip(names, classifiers):
-    print('\n -> ' + name)
 
-    # Passo i valori per evitare la failure con XGB quando uso LIME
-    clf.fit(X_train.values, Y_train)
-    Y_pred = clf.predict(X_test.values)
-    matrix = confusion_matrix(Y_test, Y_pred)
-    print("\n***************************** Matrice Confusione ****************************\n", matrix)
+for name, clf in zip(names, classifiers):
+    start = time.time()
+    print('\n -> ' + name)
+    clf.fit(X_train, y_train)
+
+    predictions = cross_val_predict(clf, X_train, y_train, cv=10, n_jobs=-1)
+    # Valutazione delle performance utilizzando la predizione con cross-validation
+    print('\nAccuracy con cross-validation:', round(accuracy_score(y_train, predictions), 3))
+    print('Report con cross-validation:\n', classification_report(y_train, predictions))
+    print('Matrice di confusione con cross-validation:\n', confusion_matrix(y_train, predictions))
+    report = classification_report(y_train, predictions, output_dict=True)
+    results_cv = pd.concat([results_cv, pd.DataFrame({"Classifier": name,
+                                                      "Accuracy": round(report['accuracy'], 3),
+                                                      "Precision": round(report['macro avg']['precision'], 3),
+                                                      "Recall": round(report['macro avg']['recall'], 3),
+                                                      "F1-Score": round(report['macro avg']['f1-score'], 3),
+                                                      "Time": round(time.time() - start, 3)},
+                                                     index=[0])], ignore_index=True)
     print("_____________________________________________________________________________")
 
-    report = classification_report(Y_test, Y_pred, output_dict=True)
-    results_bal = pd.concat([results_bal, pd.DataFrame({"Classifier": name,
-                                                        "Accuracy": report['accuracy'],
-                                                        "Precision": report['macro avg']['precision'],
-                                                        "Recall": report['macro avg']['recall'],
-                                                        "F1-Score": report['macro avg']['f1-score']},
-                                                       index=[0])], ignore_index=True)
+    # Predizione sui dati di test
+    y_pred = clf.predict(X_test)
+    # Valutazione delle performance sui dati di test
+    print('Accuracy sul test set:', round(accuracy_score(y_test, y_pred), 3))
+    print('Report sul test set:\n', classification_report(y_test, y_pred))
+    print('Matrice di confusione sul test set:\n', confusion_matrix(y_test, y_pred))
+    report = classification_report(y_test, y_pred, output_dict=True)
+    results_test = pd.concat([results_test, pd.DataFrame({"Classifier": name,
+                                                          "Accuracy": round(report['accuracy'], 3),
+                                                          "Precision": round(report['macro avg']['precision'], 3),
+                                                          "Recall": round(report['macro avg']['recall'], 3),
+                                                          "F1-Score": round(report['macro avg']['f1-score'], 3),
+                                                          "Time": round(time.time() - start, 3)},
+                                                         index=[0])], ignore_index=True)
+    print("_____________________________________________________________________________")
+    print("Tempo: ", round(time.time() - start, 3))
 
     # LIME
     # Seleziono la prima riga con classe pari a 1
-    test_instance = X_test.loc[Y_test == 1].iloc[0]
+    test_instance = X_test.loc[y_test].iloc[0]
 
     explainer = lime_tabular.LimeTabularExplainer(training_data=X_train.values,
                                                   feature_names=X_train.columns.values,
-                                                  class_names=[': No Diabete', ': Si Diabete'],
+                                                  class_names=[': NO Diabete', ': SI Diabete'],
                                                   mode='classification')
 
     exp = explainer.explain_instance(test_instance.values, clf.predict_proba, num_features=len(X_train.columns))
 
     # Recupero l'esito della predizione
     pred_label = clf.predict([test_instance])[0]
-    pred_label = 'SI' if pred_label == 0 else 'NO'
+    pred_label = 'SI diabete' if pred_label == 0 else 'NO diabete'
     coef = pd.DataFrame(exp.as_list())
-    print(coef)
+    # print(coef)
     coef_sum = coef[1].sum()
-    print("Somma dei coefficienti: ", round(coef_sum,2))
+    # print("Somma dei coefficienti: ", round(coef_sum,2))
 
     # Visualizzazione come barplot con il nome del modello e la classe predetta
     fig = exp.as_pyplot_figure()
-    fig.suptitle(f'     Classificatore: {name}   |   Classe predetta: {pred_label}   |   Valore totale: {round(coef_sum,2)}')
+    fig.suptitle(
+        f'     Classificatore: {name}   |   Classe predetta: {pred_label}   |   Valore totale: {round(coef_sum, 2)}')
     fig.set_size_inches(20, 6)
     plt.show()
 
-    # # SHAP
-    # explainer = shap.Explainer(clf)
-    # shap_values = explainer.shap_values(X_test[:100])
-    # shap.summary_plot(shap_values[1], X_test[:100], plot_type='violin', plot_size=0.6, show=False)
-    # plt.title(f'Classificatore: {name}')
-    # plt.show()
-
 # Stampa dei risultati in una tabella
 print()
-print("_______________________________ RISULTATI ___________________________________")
-print(results_bal)
+print("_____________________________________________________________________________")
+print("_____________________________ RISULTATI(CV) _________________________________")
+print(results_cv)
 print("_____________________________________________________________________________\n")
-results_bal.to_csv("results_bal.csv")
+results_cv.to_csv("results_cv.csv")
+print()
+print("_____________________________________________________________________________")
+print("___________________________ RISULTATI(Test) _________________________________")
+print(results_test)
+print("_____________________________________________________________________________\n")
+results_test.to_csv("results_test.csv")
 
 print("Tempo di esecuzione --- %s secondi ---" % (time.time() - start_time))
