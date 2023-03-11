@@ -341,97 +341,94 @@ plt.show()
 X = data.drop(['Diabetes_binary', 'AnyHealthcare', 'NoDocbcCost', 'Fruits', 'Veggies', 'Sex'], axis=1)
 y = data['Diabetes_binary']
 
-# names = ["Decision Tree", 'Random Forest', 'Logistic Regression', 'Nearest Neighbors', "Naive Bayes", 'GradientBoost',
-#          'XGB', 'LGBM', 'CatBoost', 'AdaBoost']
-names = ['AdaBoost']
+names = ["Decision Tree", 'Random Forest', 'Logistic Regression', 'Nearest Neighbors', "Naive Bayes", 'GradientBoost',
+         'XGB', 'LGBM', 'CatBoost', 'AdaBoost']
+
 
 classifiers = [
-    # DecisionTreeClassifier(),
-    # RandomForestClassifier(random_state=42),
-    # LogisticRegression(random_state=42),
-    # KNeighborsClassifier(),
-    # GaussianNB(),
-    # GradientBoostingClassifier(random_state=42),
-    # XGBClassifier(random_state=42),
-    # # LGBMClassifier(),
-    # CatBoostClassifier(),
+    DecisionTreeClassifier(),
+    RandomForestClassifier(random_state=42),
+    LogisticRegression(random_state=42),
+    KNeighborsClassifier(),
+    GaussianNB(),
+    GradientBoostingClassifier(random_state=42),
+    XGBClassifier(random_state=42),
+    LGBMClassifier(),
+    CatBoostClassifier(),
     AdaBoostClassifier()
 ]
 
 params = [
-    # {
-    #     'criterion': ['gini', 'entropy'],
-    #     'max_depth': [5, 9, 15, None],
-    #     'min_samples_split': [2, 3, 4],
-    #     'min_samples_leaf': [1, 2, 4],
-    #     'max_features': ['sqrt', 'log2']
-    # },  # Decision Tree
-    #
-    # {
-    #     'n_estimators': [150, 200, 250],
-    #     'max_depth': [7, 9, 12, 15, 20, None],
-    #     'criterion': ['gini', 'entropy'],
-    #     'max_features': ['sqrt', 'log2'],
-    #     'min_samples_leaf': [1, 2, 4],
-    #     'min_samples_split': [2, 3, 4],
-    # },  # Random Forest
-    #
-    # {
-    #     'penalty': ['l1', 'l2'],
-    #     'C': [0.25, 0.5, 0.75, 1, 10],
-    #     'solver': ['newton-cg', 'lbfgs', 'liblinear', 'saga'],
-    # },  # Logistic Regression
-    #
-    # {
-    #     'n_neighbors': [5, 7, 9],
-    #     'weights': ['uniform', 'distance'],
-    #     'algorithm': ['auto', 'kd_tree']
-    # },  # KNN
-    #
-    # {},  # Naive Bayes
-    #
-    # {
-    #     "learning_rate": [0.05, 0.1, 0.2],
-    #     "max_depth": [3, 5, 7],
-    #     "max_features": ["log2", "sqrt"],
-    #     "n_estimators": [100, 150, 250],
-    #     'min_samples_split': [2, 3, 4],
-    #     'min_samples_leaf': [1, 2, 4]
-    # },  # GradientBoost
-    #
-    # {
-    #     "n_estimators": [100, 150, 250],
-    #     'min_child_weight': [1, 3, 5],
-    #     'max_depth': [3, 5, 7],
-    #     'subsample': [0.8, 1.0],
-    #     'colsample_bytree': [0.8, 1.0],
-    #     'learning_rate': [0.01, 0.05, 0.1],
-    #     'eval_metric': ['error']
-    # },  # XGB
-    #
-    # {
-    #     'learning_rate': [0.05, 0.1, 0.2],
-    #     'max_depth': [3, 5, 7],
-    #     'n_estimators': [50, 100, 200],
-    #     'num_leaves': [6, 8, 12],
-    #     'boosting_type': ['gbdt', 'dart'],
-    #     'objective': ['binary'],
-    #     'subsample': [0.5, 0.7, 1],
-    #     'reg_alpha': [0, 0.1, 0.5],
-    #     'reg_lambda': [0, 0.1, 0.5],
-    #     'min_child_samples': [10, 20, 30]
-    # },  # LGBM
+    {
+        'criterion': ['gini', 'entropy'],
+        'max_depth': [5, 9, 15, None],
+        'min_samples_split': [2, 3, 4],
+        'min_samples_leaf': [1, 2, 4],
+        'max_features': ['sqrt', 'log2']
+    },  # Decision Tree
 
-    # {
-    #     'iterations': [500, 1000],
-    #     'depth': [4, 5, 6],
-    #     'loss_function': ['Logloss', 'CrossEntropy'],
-#'learning_rate': [0.05, 0.1, 0.15],
-#'l2_leaf_reg': [1, 3, 5],  # Coefficiente di regolarizzazione L2
-    #     'leaf_estimation_iterations': [10],
-    #     'logging_level': ['Silent'],
-    #     'random_seed': [42]
-    # },  # CatBoost
+    {
+        'n_estimators': [150, 200, 250],
+        'max_depth': [9, 12, 15, 20, None],
+        'criterion': ['gini', 'entropy'],
+        'max_features': ['sqrt', 'log2'],
+        'min_samples_leaf': [1, 2, 4],
+        'min_samples_split': [2, 3, 4],
+    },  # Random Forest
+
+    {
+        'penalty': ['l1', 'l2'],
+        'C': [0.25, 0.5, 0.75, 1, 10],
+        'solver': ['newton-cg', 'lbfgs', 'liblinear', 'saga'],
+    },  # Logistic Regression
+
+    {
+        'n_neighbors': [5, 7, 9],
+        'weights': ['uniform', 'distance'],
+        'algorithm': ['auto', 'kd_tree']
+    },  # KNN
+
+    {},  # Naive Bayes
+
+    {
+        "learning_rate": [0.05, 0.1, 0.2],
+        "max_depth": [3, 5, 7],
+        "max_features": ["log2", "sqrt"],
+        "n_estimators": [100, 150, 250],
+        'min_samples_split': [2, 3, 4],
+        'min_samples_leaf': [1, 2, 4]
+    },  # GradientBoost
+
+    {
+        "n_estimators": [100, 150, 250],
+        'min_child_weight': [1, 3, 5],
+        'max_depth': [3, 5, 7],
+        'subsample': [0.8, 1.0],
+        'colsample_bytree': [0.8, 1.0],
+        'learning_rate': [0.01, 0.05, 0.1],
+        'eval_metric': ['error']
+    },  # XGB
+
+    {
+        'learning_rate': [0.05, 0.1, 0.2],
+        'max_depth': [3, 5, 7],
+        'n_estimators': [50, 100, 200],
+        'num_leaves': [6, 8, 12],
+        'boosting_type': ['gbdt', 'dart'],
+        'objective': ['binary'],
+        'min_child_samples': [10, 20, 30]
+    },  # LGBM
+
+    {
+        'iterations': [500, 1000],
+        'depth': [4, 5, 6],
+        'loss_function': ['Logloss', 'CrossEntropy'],
+        'learning_rate': [0.05, 0.1, 0.15],
+        'l2_leaf_reg': [1, 3, 5],  # Coefficiente di regolarizzazione L2
+        'leaf_estimation_iterations': [10],
+        'logging_level': ['Silent'],
+        'random_seed': [42]
+    },  # CatBoost
 
     {
         'estimator': [DecisionTreeClassifier()],
