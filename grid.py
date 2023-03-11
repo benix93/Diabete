@@ -9,7 +9,7 @@ from imblearn.over_sampling import SMOTE
 from lightgbm import LGBMClassifier
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
@@ -431,12 +431,8 @@ params = [
     },  # CatBoost
 
     {
-        'estimator': [DecisionTreeClassifier()],
-        'estimator__min_samples_split': [2, 3, 4],
-        'estimator__min_samples_leaf': [1, 2, 3],
-        'estimator__max_depth': [3, 4, 5],
-        'estimators': [50, 100, 200],
-        'learning_rate': [0.1, 0.5, 1]
+        'estimators': [50, 100, 200, 300],
+        'learning_rate': [0.01, 0.1, 0.5, 1]
     }  # AdaBoost
 ]
 
@@ -452,12 +448,12 @@ X_test = pd.DataFrame(scaler.transform(X_test), columns=X.columns)
 # SMOTE
 smote = SMOTE(sampling_strategy=1, random_state=42)
 X_train, y_train = smote.fit_resample(X_train, y_train)
-
+cv = StratifiedKFold(n_splits=3, random_state=1, shuffle=True)
 print("_____________________________________________________________________________")
 for name, clf, param in zip(names, classifiers, params):
     start = time.time()
     print('\n -> ' + name)
-    clf = GridSearchCV(clf, param_grid=param, cv=3, n_jobs=-1, scoring='recall')
+    clf = GridSearchCV(clf, param_grid=param, cv=cv, n_jobs=-1, scoring='recall')
     clf.fit(X_train, y_train)
     print(f'Migliori parametri per {name}: {clf.best_params_}')
 

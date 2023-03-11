@@ -341,7 +341,7 @@ plt.axhline(y=-0.05, linestyle='--', color='gray')
 plt.show()
 
 # Vengono eliminate le features meno significative
-X = data.drop(['Diabetes_binary', 'AnyHealthcare', 'NoDocbcCost', 'Fruits', 'Veggies', 'Sex'], axis=1)
+X = data.drop(['Diabetes_binary', 'AnyHealthcare', 'NoDocbcCost', 'Fruits', 'Veggies', 'Sex', 'Smoker'], axis=1)
 y = data['Diabetes_binary']
 
 names = ["Decision Tree", 'Random Forest', 'Logistic Regression', 'Nearest Neighbors', "Naive Bayes", 'GradientBoost',
