@@ -15,7 +15,7 @@ from sklearn.model_selection import train_test_split, KFold, cross_val_score, cr
     GridSearchCV
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
 from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier
 
@@ -348,17 +348,22 @@ names = ["Decision Tree", 'Random Forest', 'Logistic Regression', 'Nearest Neigh
          'XGB', 'LGBM', 'CatBoost', 'AdaBoost']
 
 # classifiers = [
-#     DecisionTreeClassifier(criterion='gini', max_depth=15, splitter='best', min_samples_leaf=2),
-#     RandomForestClassifier(criterion='gini', max_depth=20, max_features='log2', n_estimators=200, min_samples_leaf=1, min_samples_split=2, random_state=42),
-#     LogisticRegression(C=0.25, penalty='l1', solver='liblinear', random_state=42),
+#     DecisionTreeClassifier(criterion='entropy', max_depth=None, max_features='log2'),
+#     RandomForestClassifier(criterion='entropy', max_depth=None, max_features='sqrt', n_estimators=250,
+#                            min_samples_leaf=1, min_samples_split=3, random_state=42),
+#     LogisticRegression(C=0.75, penalty='l1', solver='saga', random_state=42),
 #     KNeighborsClassifier(algorithm='kd_tree', n_neighbors=5, weights='distance'),
 #     GaussianNB(var_smoothing=1e-09),
-#     GradientBoostingClassifier(learning_rate=0.5, max_depth=5, n_estimators=200, criterion='friedman_mse', max_features='sqrt', random_state=42),
-#     XGBClassifier(eval_metric='error', learning_rate=0.1, max_depth=5, n_estimators=200, min_child_weight=10, random_state=42),
-#     LGBMClassifier(boosting_type='gbdt', learning_rate=0.1, max_depth=5, n_estimators=200, num_leaves=12, objective='binary'),
-#     CatBoostClassifier(depth=6, iterations=500, leaf_estimation_iterations=10, logging_level='Silent', loss_function='Logloss', random_seed=42),
-#     AdaBoostClassifier(estimator=DecisionTreeClassifier(), algorithm='SAMME.R', learning_rate=0.5, n_estimators=200)
-# ]
+#     GradientBoostingClassifier(learning_rate=0.1, max_depth=7, n_estimators=250, criterion='friedman_mse',
+#                                max_features='log2', min_samples_split=3, random_state=42),
+#     XGBClassifier(eval_metric='error', learning_rate=0.1, max_depth=7, n_estimators=250, min_child_weight=1,
+#                   random_state=42, colsample_bytree=0.8, subsample=1),
+#     LGBMClassifier(boosting_type='gbdt', learning_rate=0.2, max_depth=5, n_estimators=200, num_leaves=12,
+#                    min_child_samples=30, objective='binary'),
+#     CatBoostClassifier(depth=5, iterations=1000, leaf_estimation_iterations=10, logging_level='Silent',
+#                        loss_function='Logloss', random_seed=42),
+#     AdaBoostClassifier(n_estimators=250, random_state=42)
+# ]  # Accuracy
 
 classifiers = [
     DecisionTreeClassifier(criterion='entropy', max_depth=None, max_features='sqrt'),
@@ -377,30 +382,46 @@ classifiers = [
     AdaBoostClassifier(estimator=DecisionTreeClassifier(max_depth=5), n_estimators=200)
 ]  # Recall
 
+# classifiers = [
+#     DecisionTreeClassifier(criterion='entropy', max_depth=None, max_features='log2'),
+#     RandomForestClassifier(criterion='entropy', max_depth=None, max_features='sqrt', n_estimators=250, random_state=42, min_samples_split=3),
+#     LogisticRegression(C=0.75, penalty='l2', solver='saga', random_state=42),
+#     KNeighborsClassifier(algorithm='kd_tree', n_neighbors=5, weights='distance'),
+#     GaussianNB(var_smoothing=1e-09),
+#     GradientBoostingClassifier(learning_rate=0.1, max_depth=7, n_estimators=250, max_features='log2',
+#                                min_samples_split=3, random_state=42),
+#     XGBClassifier(colsample_bytree=0.8, eval_metric='error', learning_rate=0.1, max_depth=7, min_child_weight=1,
+#                   n_estimators=250, subsample=1.0, random_state=42),
+#     LGBMClassifier(boosting_type='gbdt', learning_rate=0.2, max_depth=5, n_estimators=200, num_leaves=12,
+#                    min_child_samples=30, objective='binary'),
+#     CatBoostClassifier(depth=5, iterations=1000, leaf_estimation_iterations=10, learning_rate=0.05, logging_level='Silent',
+#                        loss_function='Logloss', random_seed=42),
+#     AdaBoostClassifier(estimator=DecisionTreeClassifier(max_depth=5), n_estimators=200)
+# ]  # F1_score
+
 results_cv = pd.DataFrame(columns=["Classifier", "Accuracy", "Precision", "Recall", "F1-Score", "Time"])
 results_test = pd.DataFrame(columns=["Classifier", "Accuracy", "Precision", "Recall", "F1-Score", "Time"])
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
-
+# Trovo l'indice della prima riga in cui y = 1
 idx = np.where(y_test == 1)[0][0]
 # Seleziona la riga corrispondente in X_test
 row = X_test.iloc[idx]
-fig, ax = plt.subplots(1, 2, figsize=(20,15))
+fig, ax = plt.subplots(1, 2, figsize=(20, 15))
 # Visualizza la riga prima dello scaling come barplot
 ax[0].bar(row.index, row.values)
 ax[0].set_title('Prima dello scaling')
 ax[0].set_xticklabels(row.index, rotation=90)
 
-scaler = StandardScaler()
+scaler = MinMaxScaler()
 X_train = pd.DataFrame(scaler.fit_transform(X_train), columns=X.columns)
 X_test = pd.DataFrame(scaler.transform(X_test), columns=X.columns)
 
-row = X_test.iloc[idx]
+row_sc = X_test.iloc[idx]
 # Visualizza la riga dopo lo scaling come barplot
-ax[1].bar(row.index, row.values)
+ax[1].bar(row_sc.index, row_sc.values)
 ax[1].set_title('Dopo lo scaling')
 ax[1].set_xticklabels(row.index, rotation=90)
-
 plt.show()
 
 # SMOTE
@@ -447,37 +468,40 @@ for name, clf in zip(names, classifiers):
     print("_____________________________________________________________________________")
     print("Tempo: ", round(time.time() - start, 3))
     accuracy = round(clf.score(X_test.values, y_test.values), 2)
-    # Trova l'indice della prima riga di y_test con valore pari a 1
-    idx = np.where(y_test == 1)[0][0]
-    # Seleziona la riga corrispondente in X_test
-    row = X_test.iloc[idx]
+    # Trova gli indici delle prime tre righe di y_test con valore pari a 1
+    idxs = np.where(y_test == 1)[0][:3]
+    # Seleziona le righe corrispondenti in X_test
+    rows = X_test.iloc[idxs]
 
     # LIME
     explainer = lime_tabular.LimeTabularExplainer(training_data=X_train.values,
                                                   feature_names=X_train.columns.tolist(),
                                                   mode='classification')
 
-    exp = explainer.explain_instance(row.values, clf.predict_proba, num_features=len(X_train.columns))
+    # Itera sulle righe
+    for i, row in rows.iterrows():
+        exp = explainer.explain_instance(row.values, clf.predict_proba, num_features=len(X_train.columns))
 
-    # Recupero l'esito della predizione e la classe vera
-    pred_label = clf.predict([row])[0]
-    true_label = y_test.iloc[idx]
-    pred_label = ': SI Diabete' if pred_label == 1 else ': NO Diabete'
-    true_label = ': SI Diabete' if true_label == 1 else ': NO Diabete'
+        # Recupero l'esito della predizione e la classe vera
+        pred_label = clf.predict([row])[0]
+        true_label = y_test.iloc[i]
+        pred_label = ': SI Diabete' if pred_label == 1 else ': NO Diabete'
+        true_label = ': SI Diabete' if true_label == 1 else ': NO Diabete'
 
-    coef = pd.DataFrame(exp.as_list())
-    coef_sum = coef[1].sum()
+        coef = pd.DataFrame(exp.as_list())
+        coef_sum = coef[1].sum()
 
-    # Visualizzazione come barplot con il nome del modello e la classe predetta e vera
-    fig = exp.as_pyplot_figure()
-    fig.set_size_inches(20, 6)
-    plt.title(
-        f'Classificatore: {name} |'
-        f' Classe vera: {true_label} |'
-        f' Classe predetta: {pred_label} |'
-        f' Accuracy: {accuracy} |'
-        f' Valore totale: {round(coef_sum, 2)}')
-    plt.show()
+        # Visualizzazione come barplot con il nome del modello e la classe predetta e vera
+        fig = exp.as_pyplot_figure()
+        fig.set_size_inches(20, 6)
+        plt.title(
+            f'Paziente: {i} | '
+            f' Classificatore: {name} |'
+            f' Classe vera: {true_label} |'
+            f' Classe predetta: {pred_label} |'
+            f' Accuracy: {accuracy} |'
+            f' Valore totale: {round(coef_sum, 3)}')
+        plt.show()
 
 # Stampa dei risultati in una tabella
 print()

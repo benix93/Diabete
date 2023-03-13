@@ -9,10 +9,11 @@ from imblearn.over_sampling import SMOTE
 from lightgbm import LGBMClassifier
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier
 
@@ -341,98 +342,101 @@ plt.show()
 X = data.drop(['Diabetes_binary', 'AnyHealthcare', 'NoDocbcCost', 'Fruits', 'Veggies', 'Sex'], axis=1)
 y = data['Diabetes_binary']
 
-names = ["Decision Tree", 'Random Forest', 'Logistic Regression', 'Nearest Neighbors', "Naive Bayes", 'GradientBoost',
-         'XGB', 'LGBM', 'CatBoost', 'AdaBoost']
-
+# names = ["Decision Tree", 'Random Forest', 'Logistic Regression', 'Nearest Neighbors', "Naive Bayes", 'GradientBoost',
+#          'XGB', 'LGBM', 'CatBoost', 'AdaBoost']
+names = ['AdaBoost']
 
 classifiers = [
-    DecisionTreeClassifier(),
-    RandomForestClassifier(random_state=42),
-    LogisticRegression(random_state=42),
-    KNeighborsClassifier(),
-    GaussianNB(),
-    GradientBoostingClassifier(random_state=42),
-    XGBClassifier(random_state=42),
-    LGBMClassifier(),
-    CatBoostClassifier(),
+    # DecisionTreeClassifier(),
+    # RandomForestClassifier(random_state=42),
+    # LogisticRegression(random_state=42),
+    # KNeighborsClassifier(),
+    # GaussianNB(),
+    # GradientBoostingClassifier(random_state=42),
+    # XGBClassifier(random_state=42),
+    # LGBMClassifier(),
+    # CatBoostClassifier(),
     AdaBoostClassifier()
 ]
 
 params = [
-    {
-        'criterion': ['gini', 'entropy'],
-        'max_depth': [5, 9, 15, None],
-        'min_samples_split': [2, 3, 4],
-        'min_samples_leaf': [1, 2, 4],
-        'max_features': ['sqrt', 'log2']
-    },  # Decision Tree
+    # {
+    #     'criterion': ['gini', 'entropy'],
+    #     'max_depth': [5, 9, 15, None],
+    #     'min_samples_split': [2, 3, 4],
+    #     'min_samples_leaf': [1, 2, 4],
+    #     'max_features': ['sqrt', 'log2']
+    # },  # Decision Tree
+    #
+    # {
+    #     'n_estimators': [100, 150, 200, 250],
+    #     'max_depth': [9, 15, 20, 30, None],
+    #     'criterion': ['gini', 'entropy'],
+    #     'max_features': ['sqrt', 'log2'],
+    #     'min_samples_leaf': [1, 2, 3],
+    #     'min_samples_split': [1, 2, 3],
+    # },  # Random Forest
+    #
+    # {
+    #     'penalty': ['l1', 'l2'],
+    #     'C': [0.25, 0.5, 0.6, 0.75, 1],
+    #     'solver': ['newton-cg', 'lbfgs', 'liblinear', 'saga'],
+    # },  # Logistic Regression
+    #
+    # {
+    #     'n_neighbors': [5, 7, 9],
+    #     'weights': ['uniform', 'distance'],
+    #     'algorithm': ['auto', 'kd_tree']
+    # },  # KNN
+    #
+    # {},  # Naive Bayes
+    #
+    # {
+    #     "learning_rate": [0.01, 0.05, 0.1],
+    #     "max_depth": [3, 5, 7, 9, 15],
+    #     "max_features": ["log2", "sqrt"],
+    #     "n_estimators": [50, 75, 100, 150],
+    #     'min_samples_split': [2, 3, 4],
+    #     'min_samples_leaf': [1, 2, 4]
+    # },  # GradientBoost
+    #
+    # {
+    #     "n_estimators": [50, 75, 100, 150],
+    #     'min_child_weight': [1, 3, 5],
+    #     'max_depth': [3, 5, 7],
+    #     'subsample': [0.8, 1.0],
+    #     'colsample_bytree': [0.8, 1.0],
+    #     'learning_rate': [0.01, 0.05, 0.1],
+    #     'eval_metric': ['error']
+    # },  # XGB
+    #
+    # {
+    #     'learning_rate': [0.05, 0.1, 0.2],
+    #     'max_depth': [2, 3, 5],
+    #     'n_estimators': [15, 30, 50, 100],
+    #     'num_leaves': [6, 8, 12],
+    #     'boosting_type': ['gbdt', 'dart'],
+    #     'objective': ['binary'],
+    #     'min_child_samples': [10, 20, 30]
+    # },  # LGBM
+
+    # {
+    #     'iterations': [500, 1000],
+    #     'depth': [4, 5, 6, 7],
+    #     'loss_function': ['Logloss', 'CrossEntropy'],
+    #     'learning_rate': [0.05, 0.1, 0.2, 0.5],
+    #     'l2_leaf_reg': [1, 3, 5, 7],
+    #     'leaf_estimation_iterations': [10],
+    #     'logging_level': ['Silent'],
+    #     'random_seed': [42]
+    # },  # CatBoost
 
     {
-        'n_estimators': [150, 200, 250],
-        'max_depth': [9, 12, 15, 20, None],
-        'criterion': ['gini', 'entropy'],
-        'max_features': ['sqrt', 'log2'],
-        'min_samples_leaf': [1, 2, 4],
-        'min_samples_split': [2, 3, 4],
-    },  # Random Forest
-
-    {
-        'penalty': ['l1', 'l2'],
-        'C': [0.25, 0.5, 0.75, 1, 10],
-        'solver': ['newton-cg', 'lbfgs', 'liblinear', 'saga'],
-    },  # Logistic Regression
-
-    {
-        'n_neighbors': [5, 7, 9],
-        'weights': ['uniform', 'distance'],
-        'algorithm': ['auto', 'kd_tree']
-    },  # KNN
-
-    {},  # Naive Bayes
-
-    {
-        "learning_rate": [0.05, 0.1, 0.2],
-        "max_depth": [3, 5, 7],
-        "max_features": ["log2", "sqrt"],
-        "n_estimators": [100, 150, 250],
-        'min_samples_split': [2, 3, 4],
-        'min_samples_leaf': [1, 2, 4]
-    },  # GradientBoost
-
-    {
-        "n_estimators": [100, 150, 250],
-        'min_child_weight': [1, 3, 5],
-        'max_depth': [3, 5, 7],
-        'subsample': [0.8, 1.0],
-        'colsample_bytree': [0.8, 1.0],
-        'learning_rate': [0.01, 0.05, 0.1],
-        'eval_metric': ['error']
-    },  # XGB
-
-    {
-        'learning_rate': [0.05, 0.1, 0.2],
-        'max_depth': [3, 5, 7],
-        'n_estimators': [50, 100, 200],
-        'num_leaves': [6, 8, 12],
-        'boosting_type': ['gbdt', 'dart'],
-        'objective': ['binary'],
-        'min_child_samples': [10, 20, 30]
-    },  # LGBM
-
-    {
-        'iterations': [500, 1000],
-        'depth': [4, 5, 6],
-        'loss_function': ['Logloss', 'CrossEntropy'],
-        'learning_rate': [0.05, 0.1, 0.15],
-        'l2_leaf_reg': [1, 3, 5],  # Coefficiente di regolarizzazione L2
-        'leaf_estimation_iterations': [10],
-        'logging_level': ['Silent'],
-        'random_seed': [42]
-    },  # CatBoost
-
-    {
-        'estimators': [50, 100, 200, 300],
-        'learning_rate': [0.01, 0.1, 0.5, 1]
+        'n_estimators': [100, 200, 300],
+        'learning_rate': [0.01, 0.1, 0.5, 1],
+        'base_estimator': [DecisionTreeClassifier(max_depth=5), RandomForestClassifier(max_depth=5)],
+        'algorithm': ['SAMME.R', 'SAMME', 'Real'],
+        'random_state': [42],
     }  # AdaBoost
 ]
 
@@ -441,26 +445,38 @@ results = pd.DataFrame(columns=["Classifier", "Accuracy", "Precision", "Recall",
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-scaler = StandardScaler()
+scaler = MinMaxScaler()
 X_train = pd.DataFrame(scaler.fit_transform(X_train), columns=X.columns)
 X_test = pd.DataFrame(scaler.transform(X_test), columns=X.columns)
 
 # SMOTE
 smote = SMOTE(sampling_strategy=1, random_state=42)
 X_train, y_train = smote.fit_resample(X_train, y_train)
+
 cv = StratifiedKFold(n_splits=3, random_state=1, shuffle=True)
 print("_____________________________________________________________________________")
 for name, clf, param in zip(names, classifiers, params):
     start = time.time()
     print('\n -> ' + name)
-    clf = GridSearchCV(clf, param_grid=param, cv=cv, n_jobs=-1, scoring='recall')
-    clf.fit(X_train, y_train)
+    clf = GridSearchCV(clf, param_grid=param, cv=cv, n_jobs=-1, scoring='accuracy')
+    clf.fit(X_train.values, y_train.values)
+
     print(f'Migliori parametri per {name}: {clf.best_params_}')
+    y_pred = clf.predict(X_test.values)
+    print('Report sul test set:\n', classification_report(y_test, y_pred))
 
     param_results = pd.concat([param_results, pd.DataFrame({"Classifier": name,
                                                             "Best Parameters": [clf.best_params_]},
                                                            index=[0])], ignore_index=True)
 
+    report = classification_report(y_test, y_pred, output_dict=True)
+    results = pd.concat([results, pd.DataFrame({"Classifier": name,
+                                                "Accuracy": round(report['accuracy'], 3),
+                                                "Precision": round(report['macro avg']['precision'], 3),
+                                                "Recall": round(report['macro avg']['recall'], 3),
+                                                "F1-Score": round(report['macro avg']['f1-score'], 3),
+                                                "Time": round(time.time() - start, 3)},
+                                               index=[0])], ignore_index=True)
     print("Tempo: ", round(time.time() - start, 3))
 
 # Stampa dei risultati in una tabella
