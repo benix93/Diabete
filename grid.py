@@ -61,7 +61,7 @@ plt.show()
 # Facciamo un drop degli outliers caratterizzati da un BMI maggiore di 50 e minore di 13 in quanto sono sicuramente
 # valori non veritieri
 
-mask = (data['BMI'] > 50) | (data['BMI'] < 13)
+mask = (data['BMI'] > 85) | (data['BMI'] < 13)
 data = data.drop(index=data[mask].index)
 print("SHAPE2: " + str(data.shape))
 
@@ -339,23 +339,22 @@ plt.axhline(y=-0.05, linestyle='--', color='gray')
 plt.show()
 
 # Vengono eliminate le features meno significative
-X = data.drop(['Diabetes_binary', 'AnyHealthcare', 'NoDocbcCost', 'Fruits', 'Veggies', 'Sex'], axis=1)
+X = data.drop(['Diabetes_binary', 'AnyHealthcare', 'NoDocbcCost', 'Fruits', 'Veggies', 'Sex', 'Smoker'], axis=1)
 y = data['Diabetes_binary']
 
-# names = ["Decision Tree", 'Random Forest', 'Logistic Regression', 'Nearest Neighbors', "Naive Bayes", 'GradientBoost',
-#          'XGB', 'LGBM', 'CatBoost', 'AdaBoost']
-names = ['AdaBoost']
-
+names = ["Decision Tree", 'Random Forest', 'Logistic Regression', 'Nearest Neighbors', "Naive Bayes", 'GradientBoost',
+         'XGB', 'LGBM', 'CatBoost', 'AdaBoost']
+names = ['GradientBoost','XGB', 'LGBM', 'CatBoost', 'AdaBoost']
 classifiers = [
     # DecisionTreeClassifier(),
     # RandomForestClassifier(random_state=42),
     # LogisticRegression(random_state=42),
     # KNeighborsClassifier(),
     # GaussianNB(),
-    # GradientBoostingClassifier(random_state=42),
-    # XGBClassifier(random_state=42),
-    # LGBMClassifier(),
-    # CatBoostClassifier(),
+    GradientBoostingClassifier(random_state=42),
+    XGBClassifier(random_state=42),
+    LGBMClassifier(),
+    CatBoostClassifier(),
     AdaBoostClassifier()
 ]
 
@@ -390,46 +389,46 @@ params = [
     # },  # KNN
     #
     # {},  # Naive Bayes
-    #
-    # {
-    #     "learning_rate": [0.01, 0.05, 0.1],
-    #     "max_depth": [3, 5, 7, 9, 15],
-    #     "max_features": ["log2", "sqrt"],
-    #     "n_estimators": [50, 75, 100, 150],
-    #     'min_samples_split': [2, 3, 4],
-    #     'min_samples_leaf': [1, 2, 4]
-    # },  # GradientBoost
-    #
-    # {
-    #     "n_estimators": [50, 75, 100, 150],
-    #     'min_child_weight': [1, 3, 5],
-    #     'max_depth': [3, 5, 7],
-    #     'subsample': [0.8, 1.0],
-    #     'colsample_bytree': [0.8, 1.0],
-    #     'learning_rate': [0.01, 0.05, 0.1],
-    #     'eval_metric': ['error']
-    # },  # XGB
-    #
-    # {
-    #     'learning_rate': [0.05, 0.1, 0.2],
-    #     'max_depth': [2, 3, 5],
-    #     'n_estimators': [15, 30, 50, 100],
-    #     'num_leaves': [6, 8, 12],
-    #     'boosting_type': ['gbdt', 'dart'],
-    #     'objective': ['binary'],
-    #     'min_child_samples': [10, 20, 30]
-    # },  # LGBM
 
-    # {
-    #     'iterations': [500, 1000],
-    #     'depth': [4, 5, 6, 7],
-    #     'loss_function': ['Logloss', 'CrossEntropy'],
-    #     'learning_rate': [0.05, 0.1, 0.2, 0.5],
-    #     'l2_leaf_reg': [1, 3, 5, 7],
-    #     'leaf_estimation_iterations': [10],
-    #     'logging_level': ['Silent'],
-    #     'random_seed': [42]
-    # },  # CatBoost
+    {
+        "learning_rate": [0.05, 0.1],
+        "max_depth": [7, 9, 15],
+        "max_features": ["log2", "sqrt"],
+        "n_estimators": [100, 150, 200],
+        'min_samples_split': [2, 3, 4],
+        'min_samples_leaf': [1, 2]
+    },  # GradientBoost
+
+    {
+        "n_estimators": [75, 100, 150],
+        'min_child_weight': [1, 3],
+        'max_depth': [3, 5, 7],
+        'subsample': [0,7, 0.8],
+        'colsample_bytree': [0.7, 0.8],
+        'learning_rate': [0.01, 0.05, 0.1],
+        'eval_metric': ['error']
+    },  # XGB
+
+    {
+        'learning_rate': [0.01, 0.05, 0.1],
+        'max_depth': [3, 5, 7, 9],
+        'n_estimators': [50, 100, 150, 200],
+        'num_leaves': [9, 12, 15, 20],
+        'boosting_type': ['gbdt', 'dart'],
+        'objective': ['binary'],
+        'min_child_samples': [20, 30, 40]
+    },  # LGBM
+
+    {
+        'iterations': [500, 1000, 1500],
+        'depth': [5,7, 9, 12],
+        'loss_function': ['Logloss', 'CrossEntropy'],
+        'learning_rate': [0.5, 0.7, 1],
+        'l2_leaf_reg': [0.5, 1, 3],
+        'leaf_estimation_iterations': [10],
+        'logging_level': ['Silent'],
+        'random_seed': [42]
+    },  # CatBoost
 
     {
         'n_estimators': [100, 200, 300],
@@ -443,7 +442,7 @@ params = [
 param_results = pd.DataFrame(columns=["Classifier", "Best Parameters"])
 results = pd.DataFrame(columns=["Classifier", "Accuracy", "Precision", "Recall", "F1-Score", "Time"])
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
 
 scaler = MinMaxScaler()
 X_train = pd.DataFrame(scaler.fit_transform(X_train), columns=X.columns)
@@ -453,12 +452,11 @@ X_test = pd.DataFrame(scaler.transform(X_test), columns=X.columns)
 smote = SMOTE(sampling_strategy=1, random_state=42)
 X_train, y_train = smote.fit_resample(X_train, y_train)
 
-cv = StratifiedKFold(n_splits=3, random_state=1, shuffle=True)
 print("_____________________________________________________________________________")
 for name, clf, param in zip(names, classifiers, params):
     start = time.time()
     print('\n -> ' + name)
-    clf = GridSearchCV(clf, param_grid=param, cv=cv, n_jobs=-1, scoring='accuracy')
+    clf = GridSearchCV(clf, param_grid=param, cv=3, n_jobs=-1, scoring='recall')
     clf.fit(X_train.values, y_train.values)
 
     print(f'Migliori parametri per {name}: {clf.best_params_}')

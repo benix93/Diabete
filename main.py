@@ -10,9 +10,10 @@ from lightgbm import LGBMClassifier
 from lime import lime_tabular
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression, Perceptron
-from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
+from sklearn.metrics import confusion_matrix, classification_report, accuracy_score, precision_score, recall_score, \
+    f1_score
 from sklearn.model_selection import train_test_split, KFold, cross_val_score, cross_val_predict, StratifiedKFold, \
-    GridSearchCV
+    GridSearchCV, cross_validate
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
@@ -60,10 +61,10 @@ for i, col in enumerate(['BMI', 'GenHlth', 'MentHlth', 'PhysHlth', 'Age', 'Educa
     plt.boxplot(x=col, data=data, labels=[col], patch_artist=True)
 plt.show()
 
-# Facciamo un drop degli outliers caratterizzati da un BMI maggiore di 50 e minore di 13 in quanto sono sicuramente
+# Facciamo un drop degli outliers caratterizzati da un BMI maggiore di 85 e minore di 13 in quanto sono quasi sicuramente
 # valori non veritieri
 
-mask = (data['BMI'] > 50) | (data['BMI'] < 13)
+mask = (data['BMI'] > 85) | (data['BMI'] < 13)
 data = data.drop(index=data[mask].index)
 print("SHAPE2: " + str(data.shape))
 
@@ -116,7 +117,7 @@ data2['PhysHlth'] = data2["PhysHlth"].apply(days_map)
 data2['MentHlth'] = data2["MentHlth"].apply(days_map)
 data2['Diabetes_binary'] = data2['Diabetes_binary'].replace({0: 'No', 1: 'Si'})
 data2['Smoker'] = data2['Smoker'].replace({0: 'No', 1: 'Si'})
-data2['Sex'] = data2['Sex'].replace({0: 'Uomo', 1: 'Donna'})
+data2['Sex'] = data2['Sex'].replace({0: 'Donna', 1: 'Uomo'})
 data2['HighBP'] = data2['HighBP'].replace({0: 'No', 1: 'Si'})
 data2['HighChol'] = data2['HighChol'].replace({0: 'No', 1: 'Si'})
 data2['CholCheck'] = data2['CholCheck'].replace({0: 'No', 1: 'Si'})
@@ -329,13 +330,13 @@ plt.title("Matrice Correlazione")
 plt.show()
 
 # Istogramma correlazione con Diabetes_Binary
-plt.figure(figsize=(15, 15))
+plt.figure(figsize=(15, 18))
 corr = data.corr().sort_values(by='Diabetes_binary', ascending=False)
 corr = corr[corr.index != 'Diabetes_binary']
 corr['Diabetes_binary'].plot(kind='bar', color='firebrick')
 plt.xlabel('Features')
 plt.ylabel('Correlazione')
-plt.title('Correlazione con Diabete')
+plt.title('Correlazione con la variabile target')
 plt.axhline(y=0.05, linestyle='--', color='gray')
 plt.axhline(y=-0.05, linestyle='--', color='gray')
 plt.show()
@@ -366,18 +367,19 @@ names = ["Decision Tree", 'Random Forest', 'Logistic Regression', 'Nearest Neigh
 # ]  # Accuracy
 
 classifiers = [
-    DecisionTreeClassifier(criterion='entropy', max_depth=None, max_features='sqrt'),
-    RandomForestClassifier(max_depth=20, max_features='sqrt', n_estimators=150, random_state=42),
-    LogisticRegression(C=0.5, penalty='l2', solver='liblinear', random_state=42),
+    DecisionTreeClassifier(criterion='entropy', max_depth=None, max_features='log2'),
+    RandomForestClassifier(max_depth=20, max_features='sqrt', n_estimators=200, min_samples_split=1, random_state=42),
+    LogisticRegression(C=1, penalty='l2', solver='liblinear', random_state=42),
     KNeighborsClassifier(algorithm='auto', n_neighbors=5, weights='distance'),
     GaussianNB(var_smoothing=1e-09),
-    GradientBoostingClassifier(learning_rate=0.05, max_depth=7, n_estimators=100, max_features='log2',
-                               min_samples_split=3, random_state=42),
+    GradientBoostingClassifier(learning_rate=0.05, max_depth=20, n_estimators=100, max_features='log2',
+                               min_samples_split=3, min_samples_leaf=1, random_state=42),
     XGBClassifier(colsample_bytree=1.0, eval_metric='error', learning_rate=0.05, max_depth=5, min_child_weight=1,
                   n_estimators=100, random_state=42),
-    LGBMClassifier(boosting_type='gbdt', learning_rate=0.1, max_depth=3, n_estimators=50, num_leaves=8,
-                   min_child_samples=30, objective='binary', reg_alpha=0.1, reg_lambda=0.1, subsample=0.5),
-    CatBoostClassifier(depth=6, iterations=500, leaf_estimation_iterations=10, logging_level='Silent',
+    LGBMClassifier(boosting_type='gbdt', learning_rate=0.05, max_depth=5, n_estimators=100, num_leaves=12,
+                   min_child_samples=30, objective='binary'),
+    CatBoostClassifier(depth=7, iterations=1000, learning_rate=0.5, l2_leaf_reg=1, leaf_estimation_iterations=10,
+                       logging_level='Silent',
                        loss_function='Logloss', random_seed=42),
     AdaBoostClassifier(estimator=DecisionTreeClassifier(max_depth=5), n_estimators=200)
 ]  # Recall
@@ -413,7 +415,7 @@ ax[0].bar(row.index, row.values)
 ax[0].set_title('Prima dello scaling')
 ax[0].set_xticklabels(row.index, rotation=90)
 
-scaler = MinMaxScaler()
+scaler = RobustScaler()
 X_train = pd.DataFrame(scaler.fit_transform(X_train), columns=X.columns)
 X_test = pd.DataFrame(scaler.transform(X_test), columns=X.columns)
 
@@ -428,7 +430,7 @@ plt.show()
 smote = SMOTE(sampling_strategy=1, random_state=42)
 X_train, y_train = smote.fit_resample(X_train, y_train)
 
-cv = StratifiedKFold(n_splits=10, random_state=1, shuffle=True)
+cv = StratifiedKFold(n_splits=5, random_state=1, shuffle=True)
 print("_____________________________________________________________________________")
 
 for name, clf in zip(names, classifiers):
@@ -436,11 +438,15 @@ for name, clf in zip(names, classifiers):
     print('\n -> ' + name)
     clf.fit(X_train.values, y_train.values)
 
-    predictions = cross_val_predict(clf, X_train.values, y_train.values, cv=cv, n_jobs=-1)
+    # scores = cross_validate(clf, X_train, y_train, scoring=('accuracy', 'precision', 'recall', 'f1'), cv=cv)
+    # print(scores)
+
     # Valutazione delle performance utilizzando la cross-validation
+    predictions = cross_val_predict(clf, X_train, y_train, cv=cv, n_jobs=-1)
     print('\nAccuracy con cross-validation:', round(accuracy_score(y_train, predictions), 3))
     print('Report con cross-validation:\n', classification_report(y_train, predictions))
     print('Matrice di confusione con cross-validation:\n', confusion_matrix(y_train, predictions))
+
     report = classification_report(y_train, predictions, output_dict=True)
     results_cv = pd.concat([results_cv, pd.DataFrame({"Classifier": name,
                                                       "Accuracy": round(report['accuracy'], 3),
@@ -457,6 +463,7 @@ for name, clf in zip(names, classifiers):
     print('Accuracy sul test set:', round(accuracy_score(y_test, y_pred), 3))
     print('Report sul test set:\n', classification_report(y_test, y_pred))
     print('Matrice di confusione sul test set:\n', confusion_matrix(y_test, y_pred))
+
     report = classification_report(y_test, y_pred, output_dict=True)
     results_test = pd.concat([results_test, pd.DataFrame({"Classifier": name,
                                                           "Accuracy": round(report['accuracy'], 3),
@@ -465,26 +472,30 @@ for name, clf in zip(names, classifiers):
                                                           "F1-Score": round(report['macro avg']['f1-score'], 3),
                                                           "Time": round(time.time() - start, 3)},
                                                          index=[0])], ignore_index=True)
+
     print("_____________________________________________________________________________")
     print("Tempo: ", round(time.time() - start, 3))
-    accuracy = round(clf.score(X_test.values, y_test.values), 2)
-    # Trova gli indici delle prime tre righe di y_test con valore pari a 1
-    idxs = np.where(y_test == 1)[0][:3]
-    # Seleziona le righe corrispondenti in X_test
-    rows = X_test.iloc[idxs]
+
+    accuracy = round(accuracy_score(y_test, y_pred), 2)
+    # Trovo gli indici delle prime righe di y_test con valore pari a 0 e 1
+    idx_0 = np.where(y_test == 0)[0][0]
+    idx_1 = np.where(y_test == 1)[0][0]
+
+    # Seleziono le righe corrispondenti in X_test
+    rows = [X_test.iloc[idx_0], X_test.iloc[idx_1]]
 
     # LIME
     explainer = lime_tabular.LimeTabularExplainer(training_data=X_train.values,
                                                   feature_names=X_train.columns.tolist(),
                                                   mode='classification')
 
-    # Itera sulle righe
-    for i, row in rows.iterrows():
+    for row in rows:
+        # Creo l'explainer
         exp = explainer.explain_instance(row.values, clf.predict_proba, num_features=len(X_train.columns))
 
         # Recupero l'esito della predizione e la classe vera
         pred_label = clf.predict([row])[0]
-        true_label = y_test.iloc[i]
+        true_label = y_test.iloc[idx_1] if row.equals(X_test.iloc[idx_1]) else y_test.iloc[idx_0]
         pred_label = ': SI Diabete' if pred_label == 1 else ': NO Diabete'
         true_label = ': SI Diabete' if true_label == 1 else ': NO Diabete'
 
@@ -495,7 +506,6 @@ for name, clf in zip(names, classifiers):
         fig = exp.as_pyplot_figure()
         fig.set_size_inches(20, 6)
         plt.title(
-            f'Paziente: {i} | '
             f' Classificatore: {name} |'
             f' Classe vera: {true_label} |'
             f' Classe predetta: {pred_label} |'
