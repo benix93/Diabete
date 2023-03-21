@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sn
+import shap
 from catboost import CatBoostClassifier
 from imblearn.over_sampling import SMOTE
 from lightgbm import LGBMClassifier
@@ -11,11 +12,12 @@ from lime import lime_tabular
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression, Perceptron
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score, precision_score, recall_score, \
-    f1_score
+    f1_score, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split, KFold, cross_val_score, cross_val_predict, StratifiedKFold, \
     GridSearchCV, cross_validate
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
 from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier
@@ -61,12 +63,13 @@ for i, col in enumerate(['BMI', 'GenHlth', 'MentHlth', 'PhysHlth', 'Age', 'Educa
     plt.boxplot(x=col, data=data, labels=[col], patch_artist=True)
 plt.show()
 
-# Facciamo un drop degli outliers caratterizzati da un BMI maggiore di 85 e minore di 13 in quanto sono quasi sicuramente
+
+# Facciamo un drop degli outliers caratterizzati da un BMI maggiore di 80 e minore di 13 in quanto sono quasi sicuramente
 # valori non veritieri
 
-mask = (data['BMI'] > 85) | (data['BMI'] < 13)
-data = data.drop(index=data[mask].index)
-print("SHAPE2: " + str(data.shape))
+# # mask = (data['BMI'] > 80) | (data['BMI'] < 13)
+# data = data.drop(index=data[mask].index)
+# print("SHAPE2: " + str(data.shape))
 
 
 # Suddividiamo i BMI in fasce
@@ -161,7 +164,6 @@ plt.axis('off')
 plt.legend(title='BMI', loc='upper right', bbox_to_anchor=(1, 1))
 plt.show()
 
-# Valutiamo le percentuali con cui si presentano le features binarie
 fig, axes = plt.subplots(4, 3, figsize=(15, 15))
 for i, ax in enumerate(axes.flatten()):
     if i < len(['Diabetes_binary', 'Sex', 'HighBP', 'HighChol', 'CholCheck', 'DiffWalk', 'AnyHealthcare',
@@ -169,11 +171,13 @@ for i, ax in enumerate(axes.flatten()):
         col = ['Diabetes_binary', 'Sex', 'HighBP', 'HighChol', 'CholCheck', 'DiffWalk', 'AnyHealthcare',
                'HvyAlcoholConsump', 'Veggies', 'Fruits', 'PhysActivity', 'HeartDiseaseorAttack', 'Stroke'][i]
         labels = data2[col].unique()
-        ax.pie(data2[col].value_counts(), labels=labels, autopct='%.1f', colors=colors)
+        values = data2[col].value_counts()
+        ax.bar(labels, values, color=colors, width=0.5)
         ax.set_title(col)
+plt.tight_layout()
 plt.show()
 
-fig, axes = plt.subplots(4, 3, figsize=(15, 20))
+fig, axes = plt.subplots(4, 3, figsize=(20, 25))
 for i, ax in enumerate(axes.flatten()):
     if i < len(['Sex', 'HighBP', 'HighChol', 'CholCheck', 'DiffWalk', 'AnyHealthcare',
                 'HvyAlcoholConsump', 'Veggies', 'Fruits', 'PhysActivity', 'HeartDiseaseorAttack', 'Stroke']):
@@ -186,6 +190,7 @@ for i, ax in enumerate(axes.flatten()):
         ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
         ax.set_ylabel('Percentuale')
         ax.legend(title='Diabete', loc='upper right', bbox_to_anchor=(1.10, 1))
+plt.tight_layout()
 plt.show()
 
 fig, axes = plt.subplots(1, 3, figsize=(15, 6))
@@ -199,6 +204,7 @@ for i, ax in enumerate(axes.flatten()):
         ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
         ax.set_ylabel('Percentuale')
         ax.legend(title='Diabete', loc='upper right', bbox_to_anchor=(1.10, 1))
+plt.tight_layout()
 plt.show()
 
 # Analizziamo il rapporto tra BMI e incidenza del diabete
@@ -342,165 +348,206 @@ plt.axhline(y=-0.05, linestyle='--', color='gray')
 plt.show()
 
 # Vengono eliminate le features meno significative
-X = data.drop(['Diabetes_binary', 'AnyHealthcare', 'NoDocbcCost', 'Fruits', 'Veggies', 'Sex', 'Smoker'], axis=1)
+X = data.drop(
+    ['Diabetes_binary', 'AnyHealthcare', 'NoDocbcCost', 'Fruits', 'Veggies', 'Sex', 'Smoker', 'HvyAlcoholConsump'],
+    axis=1)
 y = data['Diabetes_binary']
 
 names = ["Decision Tree", 'Random Forest', 'Logistic Regression', 'Nearest Neighbors', "Naive Bayes", 'GradientBoost',
-         'XGB', 'LGBM', 'CatBoost', 'AdaBoost']
-
-# classifiers = [
-#     DecisionTreeClassifier(criterion='entropy', max_depth=None, max_features='log2'),
-#     RandomForestClassifier(criterion='entropy', max_depth=None, max_features='sqrt', n_estimators=250,
-#                            min_samples_leaf=1, min_samples_split=3, random_state=42),
-#     LogisticRegression(C=0.75, penalty='l1', solver='saga', random_state=42),
-#     KNeighborsClassifier(algorithm='kd_tree', n_neighbors=5, weights='distance'),
-#     GaussianNB(var_smoothing=1e-09),
-#     GradientBoostingClassifier(learning_rate=0.1, max_depth=7, n_estimators=250, criterion='friedman_mse',
-#                                max_features='log2', min_samples_split=3, random_state=42),
-#     XGBClassifier(eval_metric='error', learning_rate=0.1, max_depth=7, n_estimators=250, min_child_weight=1,
-#                   random_state=42, colsample_bytree=0.8, subsample=1),
-#     LGBMClassifier(boosting_type='gbdt', learning_rate=0.2, max_depth=5, n_estimators=200, num_leaves=12,
-#                    min_child_samples=30, objective='binary'),
-#     CatBoostClassifier(depth=5, iterations=1000, leaf_estimation_iterations=10, logging_level='Silent',
-#                        loss_function='Logloss', random_seed=42),
-#     AdaBoostClassifier(n_estimators=250, random_state=42)
-# ]  # Accuracy
+         'XGB', 'LGBM', 'MLP', 'AdaBoost']
 
 classifiers = [
-    DecisionTreeClassifier(criterion='entropy', max_depth=None, max_features='log2'),
-    RandomForestClassifier(max_depth=20, max_features='sqrt', n_estimators=200, min_samples_split=1, random_state=42),
-    LogisticRegression(C=1, penalty='l2', solver='liblinear', random_state=42),
-    KNeighborsClassifier(algorithm='auto', n_neighbors=5, weights='distance'),
-    GaussianNB(var_smoothing=1e-09),
-    GradientBoostingClassifier(learning_rate=0.05, max_depth=20, n_estimators=100, max_features='log2',
-                               min_samples_split=3, min_samples_leaf=1, random_state=42),
-    XGBClassifier(colsample_bytree=1.0, eval_metric='error', learning_rate=0.05, max_depth=5, min_child_weight=1,
-                  n_estimators=100, random_state=42),
-    LGBMClassifier(boosting_type='gbdt', learning_rate=0.05, max_depth=5, n_estimators=100, num_leaves=12,
-                   min_child_samples=30, objective='binary'),
-    CatBoostClassifier(depth=7, iterations=1000, learning_rate=0.5, l2_leaf_reg=1, leaf_estimation_iterations=10,
-                       logging_level='Silent',
-                       loss_function='Logloss', random_seed=42),
-    AdaBoostClassifier(estimator=DecisionTreeClassifier(max_depth=5), n_estimators=200)
+    DecisionTreeClassifier(criterion='entropy', max_depth=40, min_samples_leaf=2, min_samples_split=2),
+    RandomForestClassifier(max_depth=35, max_features='log2', n_estimators=200, min_samples_leaf=1, min_samples_split=3,
+                           n_jobs=-1),
+    LogisticRegression(C=1, max_iter=300, penalty='l2', solver='saga', fit_intercept=False, n_jobs=-1, warm_start=True,
+                       tol=0.1),
+    KNeighborsClassifier(leaf_size=20, weights='distance', n_neighbors=4, n_jobs=-1),
+    GaussianNB(),
+    GradientBoostingClassifier(learning_rate=0.05, max_depth=7, n_estimators=150, max_features='log2',
+                               min_samples_leaf=2),
+    XGBClassifier(learning_rate=0.4, max_depth=5, min_child_weight=1, booster='gbtree', objective='reg:logistic'),
+    LGBMClassifier(boosting_type='gbdt', learning_rate=0.2, max_depth=5, n_estimators=200,
+                   num_leaves=31, objective='binary'),
+    MLPClassifier(alpha=0.001, early_stopping=True, hidden_layer_sizes=(50, 100, 50), max_iter=200,
+                  n_iter_no_change=10),
+    AdaBoostClassifier(learning_rate=1, n_estimators=200)
 ]  # Recall
 
 # classifiers = [
-#     DecisionTreeClassifier(criterion='entropy', max_depth=None, max_features='log2'),
-#     RandomForestClassifier(criterion='entropy', max_depth=None, max_features='sqrt', n_estimators=250, random_state=42, min_samples_split=3),
-#     LogisticRegression(C=0.75, penalty='l2', solver='saga', random_state=42),
-#     KNeighborsClassifier(algorithm='kd_tree', n_neighbors=5, weights='distance'),
-#     GaussianNB(var_smoothing=1e-09),
-#     GradientBoostingClassifier(learning_rate=0.1, max_depth=7, n_estimators=250, max_features='log2',
-#                                min_samples_split=3, random_state=42),
-#     XGBClassifier(colsample_bytree=0.8, eval_metric='error', learning_rate=0.1, max_depth=7, min_child_weight=1,
-#                   n_estimators=250, subsample=1.0, random_state=42),
-#     LGBMClassifier(boosting_type='gbdt', learning_rate=0.2, max_depth=5, n_estimators=200, num_leaves=12,
-#                    min_child_samples=30, objective='binary'),
-#     CatBoostClassifier(depth=5, iterations=1000, leaf_estimation_iterations=10, learning_rate=0.05, logging_level='Silent',
-#                        loss_function='Logloss', random_seed=42),
-#     AdaBoostClassifier(estimator=DecisionTreeClassifier(max_depth=5), n_estimators=200)
-# ]  # F1_score
+#     DecisionTreeClassifier(),
+#     RandomForestClassifier(),
+#     LogisticRegression(),
+#     KNeighborsClassifier(),
+#     GaussianNB(),
+#     GradientBoostingClassifier(),
+#     XGBClassifier(),
+#     LGBMClassifier(),
+#     CatBoostClassifier(),
+#     AdaBoostClassifier()
+# ]
 
 results_cv = pd.DataFrame(columns=["Classifier", "Accuracy", "Precision", "Recall", "F1-Score", "Time"])
 results_test = pd.DataFrame(columns=["Classifier", "Accuracy", "Precision", "Recall", "F1-Score", "Time"])
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
-# Trovo l'indice della prima riga in cui y = 1
-idx = np.where(y_test == 1)[0][0]
-# Seleziona la riga corrispondente in X_test
-row = X_test.iloc[idx]
-fig, ax = plt.subplots(1, 2, figsize=(20, 15))
-# Visualizza la riga prima dello scaling come barplot
-ax[0].bar(row.index, row.values)
-ax[0].set_title('Prima dello scaling')
-ax[0].set_xticklabels(row.index, rotation=90)
+
+# Trovo gli indici delle prime righe di y_test con valore pari a 0 e 1
+idx_0 = np.where(y_test == 0)[0][0]
+idx_1 = np.where(y_test == 1)[0][1]
+# Seleziono le righe corrispondenti in X_test
+rows = [X_test.iloc[idx_0], X_test.iloc[idx_1]]
+
+fig, axs = plt.subplots(2, 2, figsize=(20, 20))
+# Grafico per la classe 0
+axs[0][0].bar(rows[0].index, rows[0].values)
+axs[0][0].set_title('Valori delle feature per la classe 0')
+axs[0][0].set_xticklabels(rows[0].index, rotation=90)
+# Grafico per la classe 1
+axs[1][0].bar(rows[1].index, rows[1].values)
+axs[1][0].set_title('Valori delle feature per la classe 1')
+axs[1][0].set_xticklabels(rows[1].index, rotation=90)
 
 scaler = RobustScaler()
 X_train = pd.DataFrame(scaler.fit_transform(X_train), columns=X.columns)
 X_test = pd.DataFrame(scaler.transform(X_test), columns=X.columns)
 
-row_sc = X_test.iloc[idx]
+rows_sc = [X_test.iloc[idx_0], X_test.iloc[idx_1]]
+axs[0][1].bar(rows_sc[0].index, rows_sc[0].values)
+axs[0][1].set_title('Valori delle feature per la classe 0 dopo lo scaling')
+axs[0][1].set_xticklabels(rows_sc[0].index, rotation=90)
 # Visualizza la riga dopo lo scaling come barplot
-ax[1].bar(row_sc.index, row_sc.values)
-ax[1].set_title('Dopo lo scaling')
-ax[1].set_xticklabels(row.index, rotation=90)
+axs[1][1].bar(rows_sc[1].index, rows_sc[1].values)
+axs[1][1].set_title('Valori delle feature per la classe 1 dopo lo scaling')
+axs[1][1].set_xticklabels(rows_sc[1].index, rotation=90)
+plt.tight_layout()
 plt.show()
 
 # SMOTE
-smote = SMOTE(sampling_strategy=1, random_state=42)
+smote = SMOTE(random_state=42)
 X_train, y_train = smote.fit_resample(X_train, y_train)
 
-cv = StratifiedKFold(n_splits=5, random_state=1, shuffle=True)
-print("_____________________________________________________________________________")
+# Create a SHAP explainer
+model = XGBClassifier()
+model.fit(X_train, y_train)
+explainer = shap.TreeExplainer(model)
 
+# Calculate SHAP values for test set
+shap_values = explainer.shap_values(X_test)
+
+# Violin plot of SHAP values
+plt.figure()
+shap.summary_plot(shap_values, X_test, plot_type="violin", show=False)
+plt.title("XGB - Violin plot")
+plt.show()
+
+# Bar plot of SHAP values
+plt.figure()
+shap.summary_plot(shap_values, X_test, plot_type="bar", show=False)
+plt.title("XGB - Bar plot")
+plt.tight_layout()
+plt.show()
+
+model = LGBMClassifier()
+model.fit(X_train, y_train)
+# Create a SHAP explainer
+explainer = shap.TreeExplainer(model)
+# Calculate SHAP values for test set
+shap_values = explainer.shap_values(X_test)
+# Plot summary of SHAP values with violin plot
+shap.summary_plot(shap_values, X_test, show=False)
+plt.title("LGBM - Bar plot")
+plt.tight_layout()
+plt.show()
+
+model = DecisionTreeClassifier()
+model.fit(X_train, y_train)
+# Create a SHAP explainer
+explainer = shap.TreeExplainer(model, verbose=2)
+# Calculate SHAP values for test set
+shap_values = explainer.shap_values(X_test)
+
+plt.figure()
+shap.summary_plot(shap_values, X_test, plot_type="violin", show=False)
+plt.title("DecisionTree - Violin plot")
+plt.show()
+
+# Plot summary of SHAP values with bar plot
+shap.summary_plot(shap_values, X_test, plot_type="bar", show=False)
+plt.title("DecisionTree - Bar plot")
+plt.tight_layout()
+plt.show()
+
+print("_____________________________________________________________________________")
+cv = StratifiedKFold(n_splits=10, random_state=1, shuffle=True)
 for name, clf in zip(names, classifiers):
     start = time.time()
     print('\n -> ' + name)
-    clf.fit(X_train.values, y_train.values)
-
-    # scores = cross_validate(clf, X_train, y_train, scoring=('accuracy', 'precision', 'recall', 'f1'), cv=cv)
-    # print(scores)
 
     # Valutazione delle performance utilizzando la cross-validation
-    predictions = cross_val_predict(clf, X_train, y_train, cv=cv, n_jobs=-1)
-    print('\nAccuracy con cross-validation:', round(accuracy_score(y_train, predictions), 3))
+    predictions = cross_val_predict(clf, X_train, y_train, cv=cv, n_jobs=-1, verbose=10)
+    precision, recall, f1_score, support = precision_recall_fscore_support(y_train, predictions)
+    acc = round(accuracy_score(y_train, predictions), 3)
+
+    print('\nAccuracy con cross-validation:', acc)
+    print('Precision con cross-validation:', precision.mean())
+    print('Recall con cross-validation:', recall.mean())
+    print('F1 con cross-validation:', f1_score.mean())
+    print('Supporto con cross-validation:', support)
+
     print('Report con cross-validation:\n', classification_report(y_train, predictions))
     print('Matrice di confusione con cross-validation:\n', confusion_matrix(y_train, predictions))
 
-    report = classification_report(y_train, predictions, output_dict=True)
     results_cv = pd.concat([results_cv, pd.DataFrame({"Classifier": name,
-                                                      "Accuracy": round(report['accuracy'], 3),
-                                                      "Precision": round(report['macro avg']['precision'], 3),
-                                                      "Recall": round(report['macro avg']['recall'], 3),
-                                                      "F1-Score": round(report['macro avg']['f1-score'], 3),
+                                                      "Accuracy": round(acc, 3),
+                                                      "Precision": round(precision.mean(), 3),
+                                                      "Recall": round(recall.mean(), 3),
+                                                      "F1-Score": round(f1_score.mean(), 3),
                                                       "Time": round(time.time() - start, 3)},
                                                      index=[0])], ignore_index=True)
     print("_____________________________________________________________________________")
 
+    clf.fit(X_train.values, y_train.values)
     # Predizione sui dati di test
     y_pred = clf.predict(X_test.values)
+    acc = round(accuracy_score(y_test, y_pred), 3)
+    precision, recall, f1_score, support = precision_recall_fscore_support(y_test, y_pred)
     # Valutazione delle performance sui dati di test
-    print('Accuracy sul test set:', round(accuracy_score(y_test, y_pred), 3))
+    print('Accuracy sul test set:', acc)
+    print('Precision test:', precision.mean())
+    print('Recall test:', recall.mean())
+    print('F1 test:', f1_score.mean())
+    print('Supporto test:', support)
     print('Report sul test set:\n', classification_report(y_test, y_pred))
     print('Matrice di confusione sul test set:\n', confusion_matrix(y_test, y_pred))
 
-    report = classification_report(y_test, y_pred, output_dict=True)
-    results_test = pd.concat([results_test, pd.DataFrame({"Classifier": name,
-                                                          "Accuracy": round(report['accuracy'], 3),
-                                                          "Precision": round(report['macro avg']['precision'], 3),
-                                                          "Recall": round(report['macro avg']['recall'], 3),
-                                                          "F1-Score": round(report['macro avg']['f1-score'], 3),
-                                                          "Time": round(time.time() - start, 3)},
-                                                         index=[0])], ignore_index=True)
+    results_cv = pd.concat([results_cv, pd.DataFrame({"Classifier": name,
+                                                      "Accuracy": round(acc, 3),
+                                                      "Precision": round(precision.mean(), 3),
+                                                      "Recall": round(recall.mean(), 3),
+                                                      "F1-Score": round(f1_score.mean(), 3),
+                                                      "Time": round(time.time() - start, 3)},
+                                                     index=[0])], ignore_index=True)
 
     print("_____________________________________________________________________________")
     print("Tempo: ", round(time.time() - start, 3))
 
-    accuracy = round(accuracy_score(y_test, y_pred), 2)
-    # Trovo gli indici delle prime righe di y_test con valore pari a 0 e 1
-    idx_0 = np.where(y_test == 0)[0][0]
-    idx_1 = np.where(y_test == 1)[0][0]
-
-    # Seleziono le righe corrispondenti in X_test
-    rows = [X_test.iloc[idx_0], X_test.iloc[idx_1]]
-
     # LIME
     explainer = lime_tabular.LimeTabularExplainer(training_data=X_train.values,
                                                   feature_names=X_train.columns.tolist(),
-                                                  mode='classification')
+                                                  mode='classification',
+                                                  discretize_continuous=True,
+                                                  discretizer='decile')
 
-    for row in rows:
+    for row in rows_sc:
         # Creo l'explainer
-        exp = explainer.explain_instance(row.values, clf.predict_proba, num_features=len(X_train.columns))
+        exp = explainer.explain_instance(row.values, clf.predict_proba, num_features=12)
 
         # Recupero l'esito della predizione e la classe vera
-        pred_label = clf.predict([row])[0]
+        # pred_label = clf.predict([row])[0]
         true_label = y_test.iloc[idx_1] if row.equals(X_test.iloc[idx_1]) else y_test.iloc[idx_0]
-        pred_label = ': SI Diabete' if pred_label == 1 else ': NO Diabete'
-        true_label = ': SI Diabete' if true_label == 1 else ': NO Diabete'
-
-        coef = pd.DataFrame(exp.as_list())
-        coef_sum = coef[1].sum()
+        # pred_label = 'SI Diabete' if pred_label == 1 else 'NO Diabete'
+        true_label = 'SI Diabete' if true_label == 1 else 'NO Diabete'
 
         # Visualizzazione come barplot con il nome del modello e la classe predetta e vera
         fig = exp.as_pyplot_figure()
@@ -508,10 +555,10 @@ for name, clf in zip(names, classifiers):
         plt.title(
             f' Classificatore: {name} |'
             f' Classe vera: {true_label} |'
-            f' Classe predetta: {pred_label} |'
-            f' Accuracy: {accuracy} |'
-            f' Valore totale: {round(coef_sum, 3)}')
+            f' Probabilitá NO: {exp.predict_proba[0]:.2f} | '
+            f' Probabilitá SI: {exp.predict_proba[1]:.2f}')
         plt.show()
+        # exp.save_to_file(f'{name}_{true_label}_{pred_label}.html')
 
 # Stampa dei risultati in una tabella
 print()

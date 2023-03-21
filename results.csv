@@ -1,1 +1,3 @@
-,Classifier,Accuracy,Precision,Recall,F1-Score,Time
+,Classifier,Recall,Time
+0,GradientBoost,0.906,12761.309
+1,MLP,0.801,9370.325
