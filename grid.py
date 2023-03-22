@@ -89,11 +89,11 @@ params = [
     # },  # Decision Tree
     #
     # {
-    #     'n_estimators': [75, 100, 150, 200],  # 100
-    #     'max_depth': [15, 20, 30, 35, None],  # None
+    #     'n_estimators': [100, 150, 200, 250],  # 100
+    #     'max_depth': [30, 35, 40, None],  # None
     #     'criterion': ['gini', 'entropy'],  # gini
     #     'min_samples_leaf': [1, 2],  # 1
-    #     'min_samples_split': [2, 3],  # 2
+    #     'min_samples_split': [2, 3, 4],  # 2
     #     'max_features': ['sqrt', 'log2'],  # sqrt
     #     'n_jobs': [-1],
     # },  # Random Forest
@@ -131,6 +131,7 @@ params = [
 
     # {
     #     'booster': ['gbtree'],  # default gbtree
+    #     "n_estimators": [50, 100, 150, 200],  # 100
     #     'min_child_weight': [1, 2, 3],  # default 1
     #     'max_depth': [4, 5, 6, 7, 8],  # default 6
     #     'learning_rate': [0.1, 0.2, 0.3, 0.4, 0.5],  # default 0.3
