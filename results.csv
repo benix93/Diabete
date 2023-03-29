@@ -1,3 +1,4 @@
 ,Classifier,Recall,Time
-0,GradientBoost,0.906,12761.309
-1,MLP,0.801,9370.325
+0,Random Forest,0.904,19130.769
+1,XGB,0.906,12444.415
+2,LGBM,0.905,6216.263
