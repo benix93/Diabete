@@ -358,35 +358,33 @@ def days_map(x):
 # plt.show()
 
 # Vengono eliminate le features meno significative
-X = data.drop(
-    ['Diabetes_binary', 'AnyHealthcare', 'NoDocbcCost', 'Fruits', 'Veggies', 'Sex', 'Smoker'],
-    axis=1)
+X = data.drop(['Diabetes_binary', 'AnyHealthcare', 'NoDocbcCost', 'Smoker', 'Fruits', 'Veggies', 'Stroke', 'PhysActivity'],axis=1)
 y = data['Diabetes_binary']
 
 names = ["Decision Tree", 'Random Forest', 'Logistic Regression', 'Nearest Neighbors', "Naive Bayes", 'GradientBoost',
          'XGB', 'LGBM', 'ExtraTree', 'AdaBoost']
 
-classifiers = [
-    DecisionTreeClassifier(criterion='gini', max_depth=40, min_samples_leaf=2, max_features=None,
-                           min_samples_split=3,
-                           splitter='best'),
-    RandomForestClassifier(criterion='entropy', max_depth=50, max_features='log2', n_estimators=200,
-                           min_samples_leaf=1, min_samples_split=4,
-                           n_jobs=-1),
-    LogisticRegression(C=0.5, max_iter=300, class_weight='balanced', fit_intercept=True, penalty='l1',
-                       solver='liblinear', n_jobs=-1,
-                       tol=0.001),
-    KNeighborsClassifier(leaf_size=20, weights='distance', n_neighbors=4, n_jobs=-1),
-    GaussianNB(),
-    GradientBoostingClassifier(learning_rate=0.2, max_depth=5, n_estimators=150, max_features=None,
-                               min_samples_leaf=2, min_samples_split=2),
-    XGBClassifier(learning_rate=0.4, max_depth=4, min_child_weight=3, booster='gbtree', colsample_bytree=0.9,
-                  n_estimators=200),
-    LGBMClassifier(boosting_type='gbdt', learning_rate=0.3, max_depth=5, n_estimators=200,
-                   num_leaves=21, objective='binary'),
-    ExtraTreeClassifier(criterion='log_loss', max_features='sqrt'),
-    AdaBoostClassifier(learning_rate=1, n_estimators=200)
-]  # Recall
+# classifiers = [
+#     DecisionTreeClassifier(criterion='gini', max_depth=40, min_samples_leaf=2, max_features=None,
+#                            min_samples_split=3,
+#                            splitter='best'),
+#     RandomForestClassifier(criterion='entropy', max_depth=50, max_features='log2', n_estimators=200,
+#                            min_samples_leaf=1, min_samples_split=4,
+#                            n_jobs=-1),
+#     LogisticRegression(C=0.5, max_iter=300, class_weight='balanced', fit_intercept=True, penalty='l1',
+#                        solver='liblinear', n_jobs=-1,
+#                        tol=0.001),
+#     KNeighborsClassifier(leaf_size=20, weights='distance', n_neighbors=4, n_jobs=-1),
+#     GaussianNB(),
+#     GradientBoostingClassifier(learning_rate=0.2, max_depth=5, n_estimators=150, max_features=None,
+#                                min_samples_leaf=2, min_samples_split=2),
+#     XGBClassifier(learning_rate=0.4, max_depth=4, min_child_weight=3, booster='gbtree', colsample_bytree=0.9,
+#                   n_estimators=200),
+#     LGBMClassifier(boosting_type='gbdt', learning_rate=0.3, max_depth=5, n_estimators=200,
+#                    num_leaves=21, objective='binary'),
+#     ExtraTreeClassifier(criterion='log_loss', max_features='sqrt'),
+#     AdaBoostClassifier(learning_rate=1, n_estimators=200)
+# ]  # Recall
 
 # classifiers = [
 #     DecisionTreeClassifier(),
@@ -401,8 +399,53 @@ classifiers = [
 #     AdaBoostClassifier()
 # ]
 
+# classifiers = [
+#     DecisionTreeClassifier(criterion='entropy', max_depth=40, min_samples_leaf=2, max_features=None,
+#                            min_samples_split=1,
+#                            splitter='best'),
+#     RandomForestClassifier(criterion='entropy', max_depth=50, max_features='log2', n_estimators=200,
+#                            min_samples_leaf=1, min_samples_split=4,
+#                            n_jobs=-1),
+#     LogisticRegression(C=1, max_iter=200, class_weight='balanced', fit_intercept=True, penalty='l2',
+#                        solver='saga', n_jobs=-1,
+#                        tol=0.001),
+#     KNeighborsClassifier(algorithm='ball_tree', leaf_size=30, weights='distance', n_neighbors=4, n_jobs=-1),
+#     GaussianNB(),
+#     GradientBoostingClassifier(learning_rate=0.2, max_depth=5, n_estimators=150, max_features=None,
+#                                min_samples_leaf=2, min_samples_split=2),
+#     XGBClassifier(learning_rate=0.3, max_depth=5, min_child_weight=1, booster='gbtree', colsample_bytree=0.8,
+#                   n_estimators=200, subsample=1),
+#     LGBMClassifier(boosting_type='gbdt', learning_rate=0.2, max_depth=7, n_estimators=200,
+#                    num_leaves=41, objective='binary', subsample=0.8, colsample_bytree=0.8),
+#     ExtraTreeClassifier(criterion='log_loss', max_features='sqrt', max_depth=50),
+#     AdaBoostClassifier(learning_rate=1, n_estimators=200)
+# ]  # Accuracy
+
+classifiers = [
+    DecisionTreeClassifier(criterion='gini', max_depth=30, min_samples_leaf=1, max_features=None,
+                           min_samples_split=2,
+                           splitter='best'),
+    RandomForestClassifier(criterion='gini', max_depth=30, max_features='log2', n_estimators=200,
+                           min_samples_leaf=1, min_samples_split=2,
+                           n_jobs=-1),
+    LogisticRegression(C=0.1, max_iter=200, class_weight='balanced', fit_intercept=False, penalty='l1',
+                       solver='liblinear', n_jobs=-1,
+                       tol=0.001),
+    KNeighborsClassifier(leaf_size=30, weights='distance', n_neighbors=5, n_jobs=-1),
+    GaussianNB(),
+    GradientBoostingClassifier(learning_rate=0.05, max_depth=7, n_estimators=150, max_features='sqrt',
+                               min_samples_leaf=1, min_samples_split=2),
+    XGBClassifier(learning_rate=0.2, max_depth=4, min_child_weight=3, booster='gbtree', colsample_bytree=1,
+                  n_estimators=75),
+    LGBMClassifier(boosting_type='gbdt', learning_rate=0.05, max_depth=5, n_estimators=100,
+                   num_leaves=41, objective='binary', subsample=0.8, colsample_bytree=1),
+    ExtraTreeClassifier(criterion='log_loss', max_features=None),
+    AdaBoostClassifier(learning_rate=1, n_estimators=200)
+]  # Recall class 1
+
 results_cv = pd.DataFrame(columns=["Classifier", "Accuracy", "Precision", "Recall", "F1-Score", "Time"])
 results_test = pd.DataFrame(columns=["Classifier", "Accuracy", "Precision", "Recall", "F1-Score", "Time"])
+results_class1 = pd.DataFrame(columns=["Classifier", "Accuracy", "Precision", "Recall", "F1-Score", "Time"])
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
@@ -422,16 +465,16 @@ axs[1][0].bar(rows[1].index, rows[1].values)
 axs[1][0].set_title('Valori delle feature per la classe 1')
 axs[1][0].set_xticklabels(rows[1].index, rotation=90)
 
-# specifico le colonne non binarie da scalare
-non_binary_cols = ['Age', 'BMI', 'PhysHlth', 'GenHlth', 'Education', 'Income', 'MentHlth']
-# creo un oggetto scaler della classe RobustScaler
-scaler = RobustScaler()
-X_train[non_binary_cols] = scaler.fit_transform(X_train[non_binary_cols])
-X_test[non_binary_cols] = scaler.transform(X_test[non_binary_cols])
-
+# # specifico le colonne non binarie da scalare
+# non_binary_cols = ['Age', 'BMI', 'PhysHlth', 'GenHlth', 'Education', 'Income', 'MentHlth']
+# # creo un oggetto scaler della classe RobustScaler
 # scaler = RobustScaler()
-# X_train = pd.DataFrame(scaler.fit_transform(X_train), columns=X.columns)
-# X_test = pd.DataFrame(scaler.transform(X_test), columns=X.columns)
+# X_train[non_binary_cols] = scaler.fit_transform(X_train[non_binary_cols])
+# X_test[non_binary_cols] = scaler.transform(X_test[non_binary_cols])
+
+scaler = RobustScaler()
+X_train = pd.DataFrame(scaler.fit_transform(X_train), columns=X.columns)
+X_test = pd.DataFrame(scaler.transform(X_test), columns=X.columns)
 
 rows_sc = [X_test.iloc[idx_0], X_test.iloc[idx_1]]
 axs[0][1].bar(rows_sc[0].index, rows_sc[0].values)
@@ -452,8 +495,8 @@ X_train, y_train = smote.fit_resample(X_train, y_train)
 ###########################################################################################
 
 # Create a SHAP explainer
-model = XGBClassifier(learning_rate=0.4, max_depth=4, min_child_weight=3, booster='gbtree', colsample_bytree=0.9,
-                      n_estimators=200)
+model = XGBClassifier(learning_rate=0.2, max_depth=4, min_child_weight=3, booster='gbtree', colsample_bytree=1,
+                      n_estimators=75)
 model.fit(X_train, y_train)
 explainer = shap.TreeExplainer(model)
 
@@ -498,15 +541,15 @@ plt.show()
 
 ###########################################################################################
 
-model = LGBMClassifier(boosting_type='gbdt', learning_rate=0.3, max_depth=5, n_estimators=200,
-                       num_leaves=21, objective='binary')
+model = LGBMClassifier(boosting_type='gbdt', learning_rate=0.05, max_depth=5, n_estimators=100,
+                       num_leaves=41, objective='binary', subsample=0.8, colsample_bytree=1)
 model.fit(X_train, y_train)
 # Create a SHAP explainer
 explainer = shap.TreeExplainer(model)
 # Calculate SHAP values for test set
 shap_values = explainer.shap_values(X_test)
 
-# Plot summary of SHAP
+plt.figure()
 shap.summary_plot(shap_values, X_test, show=False)
 plt.title("LGBM - Summary plot")
 plt.tight_layout()
@@ -538,8 +581,8 @@ plt.show()
 
 ###########################################################################################
 
-model = RandomForestClassifier(criterion='entropy', max_depth=50, max_features='log2', n_estimators=200,
-                               min_samples_leaf=1, min_samples_split=4)
+model = RandomForestClassifier(criterion='gini', max_depth=30, max_features='log2', n_estimators=200,
+                               min_samples_leaf=1, min_samples_split=2, n_jobs=-1)
 model.fit(X_train, y_train)
 # Create a SHAP explainer
 explainer = shap.TreeExplainer(model)
@@ -614,6 +657,14 @@ for name, clf in zip(names, classifiers):
                                                       "F1-Score": round(f1_score.mean(), 3),
                                                       "Time": round(time.time() - start, 3)},
                                                      index=[0])], ignore_index=True)
+
+    results_class1 = pd.concat([results_class1, pd.DataFrame({"Classifier": name,
+                                                              "Accuracy": round(acc, 3),
+                                                              "Precision": round(precision[1], 3),
+                                                              "Recall": round(recall[1], 3),
+                                                              "F1-Score": round(f1_score[1], 3),
+                                                              "Time": round(time.time() - start, 3)},
+                                                             index=[0])], ignore_index=True)
     print("_____________________________________________________________________________")
 
     clf.fit(X_train.values, y_train.values)
@@ -631,11 +682,11 @@ for name, clf in zip(names, classifiers):
     print('Matrice di confusione sul test set:\n', confusion_matrix(y_test, y_pred))
 
     results_test = pd.concat([results_test, pd.DataFrame({"Classifier": name,
-                                                          "Accuracy": round(acc, 3),
-                                                          "Precision": round(precision.mean(), 3),
-                                                          "Recall": round(recall.mean(), 3),
-                                                          "F1-Score": round(f1_score.mean(), 3),
-                                                          "Time": round(time.time() - start, 3)},
+                                                          "Accuracy": round(acc, 2),
+                                                          "Precision": round(precision.mean(), 2),
+                                                          "Recall": round(recall.mean(), 2),
+                                                          "F1-Score": round(f1_score.mean(), 2),
+                                                          "Time": round(time.time() - start, 2)},
                                                          index=[0])], ignore_index=True)
 
     print("_____________________________________________________________________________")
@@ -682,5 +733,12 @@ print("___________________________ RISULTATI(Test) _____________________________
 print(results_test)
 print("_____________________________________________________________________________\n")
 results_test.to_csv("results_test.csv")
+
+print()
+print("_____________________________________________________________________________")
+print("___________________________ RISULTATI(SI) _________________________________")
+print(results_class1)
+print("_____________________________________________________________________________\n")
+results_class1.to_csv("results_test.csv")
 
 print("Tempo di esecuzione --- %s secondi ---" % (time.time() - start_time))

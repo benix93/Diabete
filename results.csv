@@ -1,4 +1,2 @@
 ,Classifier,Recall,Time
-0,Random Forest,0.904,19130.769
-1,XGB,0.906,12444.415
-2,LGBM,0.905,6216.263
+0,LGBM,0.873,5572.753
